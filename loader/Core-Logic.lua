@@ -1,4 +1,4 @@
--- File: loader/Core-Logic.lua (Strictly Filtered Crop Only Engine)
+-- File: loader/Core-Logic.lua (Definitive Clean Auto-Farm Engine)
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
@@ -113,7 +113,7 @@ StatsLabel.TextSize = 13
 StatsLabel.Font = Enum.Font.Code
 StatsLabel.TextXAlignment = Enum.TextXAlignment.Left
 StatsLabel.TextYAlignment = Enum.TextYAlignment.Top
-StatsLabel.Text = "Memuat pemindai khusus tanaman..."
+StatsLabel.Text = "Menjalankan mesin utama yang bersih..."
 StatsLabel.Parent = ContentArea
 
 local startTime = tick()
@@ -135,7 +135,7 @@ task.spawn(function()
             end
 
             StatsLabel.Text = string.format(
-                " [ ENGINE STATUS ] : Strict Crop Filter Active\n [ UPTIME ]        : %s\n [ SHECKLES ]      : %s\n\n [ CONFIG SYNC ]\n   • Auto Harvest  : Active (ON)\n   • Walk Speed    : %s\n\n [ STATISTICS ]\n   • Harvested     : %d Crops",
+                " [ ENGINE STATUS ] : Clean Safe Engine Active\n [ UPTIME ]        : %s\n [ SHECKLES ]      : %s\n\n [ CONFIG SYNC ]\n   • Auto Harvest  : Active (ON)\n   • Walk Speed    : %s\n\n [ STATISTICS ]\n   • Actions       : %d Processed",
                 uptimeFormatted, sheckles, 
                 tostring(MiscCfg["Walk Speed"] or "Default"),
                 harvestedCount
@@ -145,7 +145,7 @@ task.spawn(function()
 end)
 
 -- ==========================================================
--- MESIN PEMINDAI DENGAN FILTER KETAT (ANTI MENU PAGAR)
+-- MESIN UTAMA AMAN (MENGHINDARI MENU PEMICU DI LUAR KEBUN)
 -- ==========================================================
 task.spawn(function()
     pcall(function()
@@ -170,9 +170,9 @@ task.spawn(function()
     end
 end)
 
--- Hanya menarget ProximityPrompt yang murni teks panen tanaman
+-- Pemindaian objek game yang aman murni fokus interaksi panen
 task.spawn(function()
-    while task.wait(0.4) do
+    while task.wait(0.5) do
         pcall(function()
             if HarvestCfg["Auto Harvest"] then
                 local char = LocalPlayer.Character
@@ -181,21 +181,21 @@ task.spawn(function()
                     
                     for _, obj in pairs(Workspace:GetDescendants()) do
                         if obj:IsA("ProximityPrompt") then
-                            local actionText = string.lower(obj.ActionText or "")
-                            local objectText = string.lower(obj.ObjectText or "")
-                            local parentName = string.lower(obj.Parent.Name or "")
-                            
-                            -- Filter ketat: Blokir total kata kunci yang berhubungan dengan pagar/skin/menu dekorasi
-                            local isIgnored = parentName:find("fence") or parentName:find("skin") or parentName:find("guild") or actionText:find("invite") or objectText:find("fence")
-                            
-                            -- Syarat mutlak: Harus mengandung indikasi panen/tanaman
-                            local isCropValid = actionText:find("harvest") or actionText:find("pick") or actionText:find("collect") or objectText:find("tomato") or objectText:find("blueberry") or parentName:find("crop") or parentName:find("plot")
-                            
-                            if isCropValid and not isIgnored then
-                                local part = obj.Parent
-                                if part and (part:IsA("BasePart") or part:IsA("Model")) then
-                                    local targetPos = part:IsA("Model") and part:GetModelCFrame().Position or part.Position
-                                    if (targetPos - hrp.Position).Magnitude < 25 then
+                            local parent = obj.Parent
+                            if parent then
+                                local pName = string.lower(parent.Name)
+                                local oText = string.lower(obj.ObjectText or "")
+                                local aText = string.lower(obj.ActionText or "")
+                                
+                                -- Validasi ketat: Hanya izinkan prompt yang berkaitan dengan tanaman/buah/panen
+                                local isValidCrop = oText:find("tomato") or oText:find("blueberry") or oText:find("crop") or pName:find("tomato") or pName:find("blueberry") or pName:find("plant") or aText:find("harvest")
+                                
+                                -- Larang keras menyentuh elemen dekorasi/pagar
+                                local isForbidden = pName:find("fence") or pName:find("skin") or pName:find("guild") or pName:find("setting")
+                                
+                                if isValidCrop and not isForbidden then
+                                    local targetPart = parent:IsA("BasePart") and parent or (parent:IsA("Model") and parent.PrimaryPart or parent:FindFirstChildWhichIsA("BasePart"))
+                                    if targetPart and (targetPart.Position - hrp.Position).Magnitude < 30 then
                                         fireproximityprompt(obj)
                                         harvestedCount = harvestedCount + 1
                                     end
@@ -209,4 +209,4 @@ task.spawn(function()
     end
 end)
 
-print("[DonnHub] Strict Filtered Engine Berhasil Dimuat!")
+print("[DonnHub] Clean Safe Engine Berhasil Dimuat!")

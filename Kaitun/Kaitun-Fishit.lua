@@ -1,0 +1,1 @@
+print("Script Kaitun berhasil dimuat!")

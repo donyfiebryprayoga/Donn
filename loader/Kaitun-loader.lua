@@ -1,0 +1,19 @@
+local HttpGet = game.HttpGet
+local CurrentPlaceId = game.PlaceId
+
+local Success, Games = pcall(function()
+    return loadstring(HttpGet(game, "https://raw.githubusercontent.com/donyfiebryprayoga/DonnHUB/refs/heads/main/List%20Game/list-game-kaitun.lua"))()
+end)
+
+if not Success or type(Games) ~= "table" then 
+    warn("Gagal memuat list game kaitun!")
+    return 
+end
+
+local URL = Games[CurrentPlaceId]
+if not URL then 
+    warn("Game tidak didukung di DonnHub Kaitun.")
+    return 
+end
+
+loadstring(HttpGet(game, URL))()

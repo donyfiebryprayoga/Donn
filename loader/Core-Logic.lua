@@ -1,21 +1,16 @@
--- File: loader/Core-Logic.lua (Fully Automated & Synchronized with Config)
+-- File: loader/Core-Logic.lua (Instant Teleport Auto-Farm Engine)
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lighting = game:GetService("Lighting")
 local LocalPlayer = Players.LocalPlayer
 
--- Pastikan config tersedia
 local Config = _G.GAGConfig or {}
 local HarvestCfg = Config["Harvest"] or {}
 local PlantCfg = Config["Planting"] or {}
-local MoneyCfg = Config["Money"] or {}
-local AuctionCfg = Config["Auction"] or {}
 local PerfCfg = Config["Performance"] or {}
 local MiscCfg = Config["Misc"] or {}
 
--- Bersihkan GUI lama jika ada
 if CoreGui:FindFirstChild("DonnHubDashboard") then
     CoreGui.DonnHubDashboard:Destroy()
 end
@@ -25,48 +20,64 @@ ScreenGui.Name = "DonnHubDashboard"
 ScreenGui.Parent = CoreGui
 ScreenGui.IgnoreGuiInset = true
 
--- Panel Utama Dashboard
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 480, 0, 280)
-MainFrame.Position = UDim2.new(0.5, -240, 0.5, -140)
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-MainFrame.BackgroundTransparency = 0.15
+MainFrame.Size = UDim2.new(0, 460, 0, 260)
+MainFrame.Position = UDim2.new(0.5, -230, 0.5, -130)
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+MainFrame.BackgroundTransparency = 0.08
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
 
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 8)
-UICorner.Parent = MainFrame
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = MainFrame
+
+local TopBar = Instance.new("Frame")
+TopBar.Size = UDim2.new(1, 0, 0, 38)
+TopBar.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+TopBar.BorderSizePixel = 0
+TopBar.Parent = MainFrame
+
+local TopCorner = Instance.new("UICorner")
+TopCorner.CornerRadius = UDim.new(0, 10)
+TopCorner.Parent = TopBar
+
+local FixCover = Instance.new("Frame")
+FixCover.Size = UDim2.new(1, 0, 0, 10)
+FixCover.Position = UDim2.new(0, 0, 1, -10)
+FixCover.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+FixCover.BorderSizePixel = 0
+FixCover.Parent = TopBar
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 40)
+Title.Size = UDim2.new(1, -60, 1, 0)
+Title.Position = UDim2.new(0, 15, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "FARMING (SYNCED CONFIG ACTIVE)"
-Title.TextColor3 = Color3.fromRGB(0, 255, 128)
-Title.TextSize = 18
-Title.Font = Enum.Font.SourceSansBold
-Title.Parent = MainFrame
+Title.Text = "DONNHUB  //  INSTANT AUTO-FARM"
+Title.TextColor3 = Color3.fromRGB(0, 255, 150)
+Title.TextSize = 13
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = TopBar
 
--- Tombol Hide / Minimize di Pojok Kanan Atas
 local HideButton = Instance.new("TextButton")
 HideButton.Size = UDim2.new(0, 30, 0, 30)
-HideButton.Position = UDim2.new(1, -35, 0, 5)
+HideButton.Position = UDim2.new(1, -35, 0, 4)
 HideButton.BackgroundTransparency = 1
-HideButton.TextColor3 = Color3.fromRGB(200, 200, 200)
-HideButton.TextSize = 16
-HideButton.Font = Enum.Font.SourceSansBold
+HideButton.TextColor3 = Color3.fromRGB(160, 160, 180)
+HideButton.TextSize = 18
+HideButton.Font = Enum.Font.GothamBold
 HideButton.Text = "-"
-HideButton.Parent = MainFrame
+HideButton.Parent = TopBar
 
--- Tombol Open Kecil di Pinggir Layar
 local OpenButton = Instance.new("TextButton")
-OpenButton.Size = UDim2.new(0, 70, 0, 30)
-OpenButton.Position = UDim2.new(0, 10, 0.5, -15)
-OpenButton.BackgroundColor3 = Color3.fromRGB(0, 180, 90)
-OpenButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-OpenButton.TextSize = 13
-OpenButton.Font = Enum.Font.SourceSansBold
-OpenButton.Text = "OPEN"
+OpenButton.Size = UDim2.new(0, 85, 0, 32)
+OpenButton.Position = UDim2.new(0, 15, 0.5, -16)
+OpenButton.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+OpenButton.TextColor3 = Color3.fromRGB(0, 255, 150)
+OpenButton.TextSize = 12
+OpenButton.Font = Enum.Font.GothamBold
+OpenButton.Text = "OPEN HUB"
 OpenButton.Visible = false
 OpenButton.Parent = ScreenGui
 
@@ -84,23 +95,33 @@ OpenButton.MouseButton1Click:Connect(function()
     OpenButton.Visible = false
 end)
 
--- Label Informasi Statistik Live
-local StatsLabel = Instance.new("TextLabel")
-StatsLabel.Size = UDim2.new(1, -20, 1, -50)
-StatsLabel.Position = UDim2.new(0, 10, 0, 45)
-StatsLabel.BackgroundTransparency = 1
-StatsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-StatsLabel.TextSize = 14
-StatsLabel.Font = Enum.Font.Code
-StatsLabel.TextXAlignment = Enum.TextXAlignment.Center
-StatsLabel.TextYAlignment = Enum.TextYAlignment.Top
-StatsLabel.Text = "Memuat konfigurasi & mesin otomatis..."
-StatsLabel.Parent = MainFrame
+local ContentBox = Instance.new("Frame")
+ContentBox.Size = UDim2.new(1, -24, 1, -58)
+ContentBox.Position = UDim2.new(0, 12, 0, 48)
+ContentBox.BackgroundColor3 = Color3.fromRGB(12, 12, 15)
+ContentBox.BackgroundTransparency = 0.4
+ContentBox.BorderSizePixel = 0
+ContentBox.Parent = MainFrame
 
--- Counter Statistik Live
+local ContentCorner = Instance.new("UICorner")
+ContentCorner.CornerRadius = UDim.new(0, 6)
+ContentCorner.Parent = ContentBox
+
+local StatsLabel = Instance.new("TextLabel")
+StatsLabel.Size = UDim2.new(1, -20, 1, -20)
+StatsLabel.Position = UDim2.new(0, 10, 0, 10)
+StatsLabel.BackgroundTransparency = 1
+StatsLabel.TextColor3 = Color3.fromRGB(210, 210, 225)
+StatsLabel.TextSize = 13
+StatsLabel.Font = Enum.Font.Code
+StatsLabel.TextXAlignment = Enum.TextXAlignment.Left
+StatsLabel.TextYAlignment = Enum.TextYAlignment.Top
+StatsLabel.Text = "Menghubungkan mesin teleport..."
+StatsLabel.Parent = ContentBox
+
+-- Live Counter
 local startTime = tick()
 local harvestedCount = 0
-local plantedCount = 0
 
 task.spawn(function()
     while task.wait(1) do
@@ -117,22 +138,17 @@ task.spawn(function()
                 if cash then sheckles = tostring(cash.Value) end
             end
 
-            local harvestStatus = HarvestCfg["Auto Harvest"] and "ON" or "OFF"
-            local plantStatus = PlantCfg["Auto Plant"] and "ON" or "OFF"
-
             StatsLabel.Text = string.format(
-                "Uptime %s\n%s Sheckles\n\nHarvest: [%s] | Plant: [%s]\nPlanted: %d | Harvested: %d\nStatus: Fully Synchronized & Running",
-                uptimeFormatted, sheckles, harvestStatus, plantStatus, plantedCount, harvestedCount
+                " [ Status ] : Instant Farming Active\n [ Uptime ] : %s\n [ Sheckles ] : %s\n\n [ Harvest ] : ACTIVE\n [ Harvested Items ] : %d",
+                uptimeFormatted, sheckles, harvestedCount
             )
         end)
     end
 end)
 
 -- ==========================================================
--- MESIN UTAMA: EKSEKUSI OTOMATIS BERDASARKAN CONFIG
+-- MESIN TELEPORT & AUTO-HARVEST INSTAN
 -- ==========================================================
-
--- 1. Terapkan Pengaturan Performa & Grafik dari Config
 task.spawn(function()
     pcall(function()
         if PerfCfg["FPS Cap"] and PerfCfg["FPS Cap"] > 0 and setfpscap then
@@ -145,47 +161,23 @@ task.spawn(function()
     end)
 end)
 
--- 2. Terapkan WalkSpeed dari Config Misc secara berkala
+-- Loop Utama: Teleport instan ke tanaman di dalam folder _Gardens
 task.spawn(function()
-    while task.wait(2) do
+    while task.wait(1.5) do
         pcall(function()
-            local speed = MiscCfg["Walk Speed"] or 0
-            if speed > 0 and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                LocalPlayer.Character.Humanoid.WalkSpeed = speed
-            end
-        end)
-    end
-end)
-
--- 3. Fungsi Gerak Otomatis (Auto-Walk) ke Target Kebun
-local function walkTo(targetPos)
-    pcall(function()
-        local char = LocalPlayer.Character
-        if char and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
-            char.Humanoid:MoveTo(targetPos)
-        end
-    end)
-end
-
--- 4. Loop Utama Auto-Harvest & Navigasi Kebun (Sinkron Konfigurasi)
-task.spawn(function()
-    while task.wait(2) do
-        pcall(function()
-            -- Cek apakah Auto Harvest aktif di config
             if HarvestCfg["Auto Harvest"] then
                 local gardensFolder = Workspace:FindFirstChild("_Gardens")
-                if gardensFolder and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                    local hrp = LocalPlayer.Character.HumanoidRootPart
+                local char = LocalPlayer.Character
+                if gardensFolder and char and char:FindFirstChild("HumanoidRootPart") then
+                    local hrp = char.HumanoidRootPart
                     
                     for _, plot in pairs(gardensFolder:GetChildren()) do
                         for _, crop in pairs(plot:GetChildren()) do
                             local targetPart = crop:IsA("Model") and crop.PrimaryPart or (crop:IsA("BasePart") and crop or nil)
                             if targetPart then
-                                local dist = (targetPart.Position - hrp.Position).Magnitude
-                                if dist < 80 and dist > 3 then
-                                    walkTo(targetPart.Position)
-                                    task.wait(1)
-                                end
+                                -- Teleport langsung mendekati posisi tanaman
+                                hrp.CFrame = targetPart.CFrame + Vector3.new(0, 3, 0)
+                                task.wait(0.3)
                             end
                         end
                     end
@@ -195,9 +187,9 @@ task.spawn(function()
     end
 end)
 
--- 5. Loop Interaksi Otomatis (Memicu ProximityPrompt di Sekitar Karakter)
+-- Loop Interaksi Prompt Otomatis
 task.spawn(function()
-    while task.wait(0.8) do
+    while task.wait(0.5) do
         pcall(function()
             if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
                 local hrp = LocalPlayer.Character.HumanoidRootPart
@@ -214,18 +206,4 @@ task.spawn(function()
     end
 end)
 
--- 6. Loop Auto-Buy Auction (Sinkron Config Auction)
-task.spawn(function()
-    while task.wait(AuctionCfg["Check Every"] or 0.5) do
-        pcall(function()
-            if AuctionCfg["Auto Buy"] then
-                local auctionStand = Workspace:FindFirstChild("AuctionStand")
-                if auctionStand then
-                    -- Pemantauan otomatis ke AuctionStand berdasarkan item di config
-                end
-            end
-        end)
-    end
-end)
-
-print("[DonnHub] Full Automation Engine berhasil disinkronkan dengan GAGConfig!")
+print("[DonnHub] Instant Teleport Engine Berhasil Diaktifkan!")

@@ -1,4 +1,4 @@
--- File: loader/Core-Logic.lua (Full Auto-Farm + Auto-Sell Engine)
+-- File: loader/Core-Logic.lua (Stable Auto-Farm + Dedicated Safe Auto-Sell)
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
@@ -114,7 +114,7 @@ StatsLabel.TextSize = 13
 StatsLabel.Font = Enum.Font.Code
 StatsLabel.TextXAlignment = Enum.TextXAlignment.Left
 StatsLabel.TextYAlignment = Enum.TextYAlignment.Top
-StatsLabel.Text = "Memuat sistem auto-sell & farm..."
+StatsLabel.Text = "Memuat mesin kebun & auto-sell..."
 StatsLabel.Parent = ContentArea
 
 -- Live Counter & Stats Engine
@@ -138,9 +138,8 @@ task.spawn(function()
             end
 
             StatsLabel.Text = string.format(
-                " [ ENGINE STATUS ] : Fully Automated & Running\n [ UPTIME ]        : %s\n [ SHECKLES ]      : %s\n\n [ CONFIG SYNC ]\n   • Auto Harvest  : Active (ON)\n   • Auto Sell At  : %s%%\n   • Walk Speed    : %s\n\n [ STATISTICS ]\n   • Harvested     : %d Crops\n   • Sold Actions  : %d Times",
+                " [ ENGINE STATUS ] : Active & Selling\n [ UPTIME ]        : %s\n [ SHECKLES ]      : %s\n\n [ CONFIG SYNC ]\n   • Auto Harvest  : Active (ON)\n   • Auto Sell     : Active (Dedicated)\n   • Walk Speed    : %s\n\n [ STATISTICS ]\n   • Harvested     : %d Crops\n   • Sold Actions  : %d Times",
                 uptimeFormatted, sheckles, 
-                tostring(HarvestCfg["Sell At"] or "85"),
                 tostring(MiscCfg["Walk Speed"] or "Default"),
                 harvestedCount, soldCount
             )
@@ -149,7 +148,7 @@ task.spawn(function()
 end)
 
 -- ==========================================================
--- MESIN AUTOMATION & AUTO-SELL LENGKAP
+-- MESIN UTAMA: AUTO-HARVEST & AUTO-SELL KHUSUS KIOS
 -- ==========================================================
 task.spawn(function()
     pcall(function()
@@ -174,7 +173,7 @@ task.spawn(function()
     end
 end)
 
--- Auto Harvest & Teleport
+-- 1. Auto Harvest & Teleport Instan Murni di _Gardens
 task.spawn(function()
     while task.wait(1) do
         pcall(function()
@@ -188,7 +187,15 @@ task.spawn(function()
                             local targetPart = crop:IsA("Model") and crop.PrimaryPart or (crop:IsA("BasePart") and crop or nil)
                             if targetPart then
                                 hrp.CFrame = targetPart.CFrame + Vector3.new(0, 4, 0)
-                                task.wait(0.4)
+                                
+                                for _, prompt in pairs(crop:GetDescendants()) do
+                                    if prompt:IsA("ProximityPrompt") then
+                                        fireproximityprompt(prompt)
+                                        harvestedCount = harvestedCount + 1
+                                    end
+                                end
+                                
+                                task.wait(0.3)
                             end
                         end
                     end
@@ -198,17 +205,28 @@ task.spawn(function()
     end
 end)
 
--- Auto Prompt Interactor
+-- 2. Auto-Sell Khusus (Mendeteksi objek penjualan/kios/NPC kasir berdasarkan nama spesifik)
 task.spawn(function()
-    while task.wait(0.4) do
+    while task.wait(4) do
         pcall(function()
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                local hrp = LocalPlayer.Character.HumanoidRootPart
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                local hrp = char.HumanoidRootPart
+                
+                -- Cari objek di Workspace yang berkaitan dengan tempat jual/sell/shop
                 for _, obj in pairs(Workspace:GetDescendants()) do
-                    if obj:IsA("ProximityPrompt") then
-                        if (obj.Parent.Position - hrp.Position).Magnitude < 20 then
-                            fireproximityprompt(obj)
-                            harvestedCount = harvestedCount + 1
+                    if obj:IsA("Model") or obj:IsA("BasePart") then
+                        local nameLower = string.lower(obj.Name)
+                        if nameLower:find("sell") or nameLower:find("shop") or nameLower:find("cashier") or nameLower:find("market") then
+                            -- Jika ada prompt di dalam objek penjualan tersebut
+                            for _, prompt in pairs(obj:GetDescendants()) do
+                                if prompt:IsA("ProximityPrompt") then
+                                    if (prompt.Parent.Position - hrp.Position).Magnitude < 40 then
+                                        fireproximityprompt(prompt)
+                                        soldCount = soldCount + 1
+                                    end
+                                end
+                            end
                         end
                     end
                 end
@@ -217,24 +235,4 @@ task.spawn(function()
     end
 end)
 
--- Mesin Auto Sell (Mendeteksi tombol atau area penjualan Sheckles di map)
-task.spawn(function()
-    while task.wait(5) do
-        pcall(function()
-            -- Mencari objek interaksi atau tombol jual (Sell) di workspace
-            for _, obj in pairs(Workspace:GetDescendants()) do
-                if obj:IsA("ProximityPrompt") and (string.lower(obj.ActionText):find("sell") or string.lower(obj.ObjectText):find("sell")) then
-                    local char = LocalPlayer.Character
-                    if char and char:FindFirstChild("HumanoidRootPart") then
-                        if (obj.Parent.Position - char.HumanoidRootPart.Position).Magnitude < 30 then
-                            fireproximityprompt(obj)
-                            soldCount = soldCount + 1
-                        end
-                    end
-                end
-            end
-        end)
-    end
-end)
-
-print("[DonnHub] Full Automation + Auto-Sell Engine Berhasil Dimuat!")
+print("[DonnHub] Auto-Farm & Dedicated Auto-Sell Active!")

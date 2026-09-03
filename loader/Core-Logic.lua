@@ -1,4 +1,4 @@
--- File: loader/Core-Logic.lua (Universal Direct Crop Finder & Teleport)
+-- File: loader/Core-Logic.lua (Working Proximity Scanner & Safe Mover)
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
@@ -113,7 +113,7 @@ StatsLabel.TextSize = 13
 StatsLabel.Font = Enum.Font.Code
 StatsLabel.TextXAlignment = Enum.TextXAlignment.Left
 StatsLabel.TextYAlignment = Enum.TextYAlignment.Top
-StatsLabel.Text = "Memindai seluruh objek kebun secara universal..."
+StatsLabel.Text = "Menghubungkan mesin pemindai prompt aktif..."
 StatsLabel.Parent = ContentArea
 
 -- Live Counter & Stats Engine
@@ -136,7 +136,7 @@ task.spawn(function()
             end
 
             StatsLabel.Text = string.format(
-                " [ ENGINE STATUS ] : Universal Scan Active\n [ UPTIME ]        : %s\n [ SHECKLES ]      : %s\n\n [ CONFIG SYNC ]\n   • Auto Harvest  : Active (ON)\n   • Walk Speed    : %s\n\n [ STATISTICS ]\n   • Harvested     : %d Crops",
+                " [ ENGINE STATUS ] : Active Scanner\n [ UPTIME ]        : %s\n [ SHECKLES ]      : %s\n\n [ CONFIG SYNC ]\n   • Auto Harvest  : Active (ON)\n   • Walk Speed    : %s\n\n [ STATISTICS ]\n   • Triggered     : %d Prompts",
                 uptimeFormatted, sheckles, 
                 tostring(MiscCfg["Walk Speed"] or "Default"),
                 harvestedCount
@@ -146,7 +146,7 @@ task.spawn(function()
 end)
 
 -- ==========================================================
--- MESIN UTAMA: UNIVERSAL PROMPT SCANNER & TELEPORT
+-- MESIN PROXIMITY SCANNER LANGSUNG (TANPA TELEPORT ERROR)
 -- ==========================================================
 task.spawn(function()
     pcall(function()
@@ -171,29 +171,27 @@ task.spawn(function()
     end
 end)
 
--- Langsung pindai semua ProximityPrompt di seluruh map yang ada hubungannya dengan tanaman/panen
+-- Pemindai ProximityPrompt Aktif di Sekitar Karakter
 task.spawn(function()
-    while task.wait(0.5) do
+    while task.wait(0.3) do
         pcall(function()
             if HarvestCfg["Auto Harvest"] then
                 local char = LocalPlayer.Character
                 if char and char:FindFirstChild("HumanoidRootPart") then
                     local hrp = char.HumanoidRootPart
                     
+                    -- Iterasi semua prompt di Workspace
                     for _, obj in pairs(Workspace:GetDescendants()) do
                         if obj:IsA("ProximityPrompt") then
-                            local parentName = string.lower(obj.Parent.Name)
-                            local actionText = string.lower(obj.ActionText)
-                            
-                            -- Filter agar hanya menyentuh prompt tanaman/panen (bukan menu sistem/pagar)
-                            if actionText:find("harvest") or actionText:find("pick") or actionText:find("collect") or parentName:find("crop") or parentName:find("plant") or parentName:find("plot") then
-                                local targetPart = obj.Parent:IsA("BasePart") and obj.Parent or (obj.Parent:IsA("Model") and obj.Parent.PrimaryPart or obj.Parent:FindFirstChildWhichIsA("BasePart"))
+                            local part = obj.Parent
+                            if part and (part:IsA("BasePart") or part:IsA("Model")) then
+                                local targetPos = part:IsA("Model") and part:GetModelCFrame().Position or part.Position
+                                local dist = (targetPos - hrp.Position).Magnitude
                                 
-                                if targetPart then
-                                    hrp.CFrame = targetPart.CFrame + Vector3.new(0, 3, 0)
+                                -- Jika prompt berada dalam jangkauan render/interaksi (< 25 stud), tembak langsung
+                                if dist < 25 then
                                     fireproximityprompt(obj)
                                     harvestedCount = harvestedCount + 1
-                                    task.wait(0.2)
                                 end
                             end
                         end
@@ -204,4 +202,4 @@ task.spawn(function()
     end
 end)
 
-print("[DonnHub] Universal Crop Scanner Berhasil Dimuat!")
+print("[DonnHub] Working Proximity Scanner Berhasil Dimuat!")

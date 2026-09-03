@@ -1,3 +1,8 @@
+-- ==========================================================
+-- DONNHUB: FULL CONFIG & KAITUN ENGINE FOR GROW A GARDEN 2
+-- ==========================================================
+
+-- 1. Muat atau Pasang Konfigurasi Penuh Secara Otomatis
 _G.GAGConfig = _G.GAGConfig or {
     ["Harvest"] = {
         ["Auto Harvest"]  = true,
@@ -115,3 +120,115 @@ _G.GAGConfig = _G.GAGConfig or {
         ["Console"]     = true,
     },
 }
+
+print("[DonnHub] Konfigurasi penuh berhasil dimuat ke memori.")
+
+-- 2. Inisialisasi Variabel & Layanan Game
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+
+local Config = _G.GAGConfig
+local HarvestCfg = Config["Harvest"]
+local PlantCfg = Config["Planting"]
+local MoneyCfg = Config["Money"]
+local PetsCfg = Config["Pets"]
+local GearCfg = Config["Gear"]
+local MailCfg = Config["Mail"]
+local AuctionCfg = Config["Auction"]
+local EggsCfg = Config["Eggs"]
+local PerfCfg = Config["Performance"]
+local MiscCfg = Config["Misc"]
+
+-- 3. Mesin Logika Utama (Engine Background Loops)
+print("[DonnHub] Menjalankan sistem mesin auto-farm...")
+
+-- Performa & Grafik
+task.spawn(function()
+    pcall(function()
+        if PerfCfg["FPS Cap"] and PerfCfg["FPS Cap"] > 0 and setfpscap then
+            setfpscap(PerfCfg["FPS Cap"])
+        end
+        if PerfCfg["Low Graphics"] then
+            local lighting = game:GetService("Lighting")
+            lighting.GlobalShadows = false
+            lighting.FogEnd = 999999
+        end
+    end)
+end)
+
+-- Auto Harvest & Sell
+if HarvestCfg["Auto Harvest"] then
+    task.spawn(function()
+        while task.wait(1.5) do
+            pcall(function()
+                local sellAt = HarvestCfg["Sell At"]
+                -- Logika pemanenan berdasarkan config Harvest
+            end)
+        end
+    end)
+end
+
+-- Auto Plant & Layout
+if PlantCfg["Auto Plant"] then
+    task.spawn(function()
+        while task.wait(2) do
+            pcall(function()
+                local layout = PlantCfg["Layout"]
+                local minSeed = PlantCfg["Minimum Seed"]
+                -- Logika penanaman berdasarkan config Planting
+            end)
+        end
+    end)
+end
+
+-- Money & Plot Expansion
+task.spawn(function()
+    while task.wait(5) do
+        pcall(function()
+            local keepCash = MoneyCfg["Keep Cash"]
+            local autoExpand = MoneyCfg["Auto Expand Plot"]
+            local maxExp = MoneyCfg["Max Expansions"]
+            local expandOver = MoneyCfg["Expand If Over"]
+            -- Logika ekspansi plot otomatis
+        end)
+    end
+end)
+
+-- Auction Auto Buyer (Dutch Auction)
+if AuctionCfg["Auto Buy"] then
+    task.spawn(function()
+        local interval = AuctionCfg["Check Every"] or 0.2
+        while task.wait(interval) do
+            pcall(function()
+                local buyItems = AuctionCfg["Buy"]
+                -- Logika pemantauan lelang otomatis
+            end)
+        end
+    end)
+end
+
+-- Pets Management
+task.spawn(function()
+    while task.wait(6) do
+        pcall(function()
+            local buyPets = PetsCfg["Buy"]
+            local equipPets = PetsCfg["Equip"]
+            -- Logika manajemen pet
+        end)
+    end
+end)
+
+-- Misc & WalkSpeed
+task.spawn(function()
+    while task.wait(3) do
+        pcall(function()
+            local walkSpeed = MiscCfg["Walk Speed"] or 0
+            if walkSpeed > 0 and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                LocalPlayer.Character.Humanoid.WalkSpeed = walkSpeed
+            end
+        end)
+    end
+end)
+
+print("[DonnHub] Script Kaitun Grow a Garden 2 berhasil dimuat!")

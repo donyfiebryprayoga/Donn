@@ -1,4 +1,4 @@
--- File: loader/Core-Logic.lua (Updated with Auto Walk to Garden & Valid Purchase Filters)
+-- File: loader/Core-Logic.lua (Full Complete Automation Script)
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
@@ -100,29 +100,53 @@ local function getCharacter()
 end
 
 local function getPlayerPlot()
-	local plotId = LocalPlayer:GetAttribute("PlotId")
 	local gardens = Workspace:FindFirstChild("Gardens")
-	if plotId and gardens then return gardens:FindFirstChild("Plot" .. tostring(plotId)) end
-	return nil
+	if not gardens then return nil end
+	local myId = LocalPlayer.UserId
+	
+	for _, plot in ipairs(gardens:GetChildren()) do
+		if tonumber(plot:GetAttribute("UserId")) == myId then
+			return plot
+		end
+	end
+	
+	local plotId = LocalPlayer:GetAttribute("PlotId")
+	if plotId and gardens:FindFirstChild("Plot" .. tostring(plotId)) then
+		return gardens:FindFirstChild("Plot" .. tostring(plotId))
+	end
+	
+	return gardens:GetChildren()[1]
 end
 
--- Fungsi Otomatis Membawa Karakter Masuk ke Dalam Garden/Plot Sendiri
 local function moveToGarden()
 	pcall(function()
-		local _, hrp, hum = getCharacter()
+		local _, hrp, _ = getCharacter()
 		local plot = getPlayerPlot()
-		if hrp and hum and plot then
-			-- Cari bagian tengah dari plot garden
-			local targetPart = plot:FindFirstChild("Base") or plot:FindFirstChildOfClass("BasePart")
+		if hrp and plot then
+			local targetPart = plot:FindFirstChild("Base") or plot:FindFirstChild("PlotBase") or plot:FindFirstChildOfClass("BasePart")
 			if targetPart then
-				local destPos = targetPart.Position + Vector3.new(0, 5, 0)
-				-- Cek jika jarak karakter terlalu jauh dari plot, teleport/jalan otomatis
-				if (hrp.Position - destPos).Magnitude > 35 then
+				local destPos = targetPart.Position + Vector3.new(0, 4, 0)
+				if (hrp.Position - destPos).Magnitude > 25 then
 					hrp.CFrame = CFrame.new(destPos)
 				end
 			end
 		end
 	end)
+end
+
+local function hasItemInInventory(itemName)
+	local function scan(container)
+		if not container then return false end
+		for _, item in ipairs(container:GetChildren()) do
+			if item:IsA("Tool") and (string.lower(item.Name) == string.lower(itemName) or item:GetAttribute("EggName") == itemName) then
+				return true
+			end
+		end
+		return false
+	end
+	if scan(LocalPlayer:FindFirstChild("Backpack")) then return true end
+	if scan(LocalPlayer.Character) then return true end
+	return false
 end
 
 local function scanCollectibleDetailed()
@@ -203,6 +227,27 @@ local function myPlantModels()
 	return out
 end
 
+local function getActiveWeather()
+	local currentWeather = "Sunny"
+	pcall(function()
+		if Workspace:GetAttribute("Weather") then
+			currentWeather = tostring(Workspace:GetAttribute("Weather"))
+		elseif ReplicatedStorage:FindFirstChild("WeatherData") then
+			local wData = ReplicatedStorage.WeatherData
+			if wData:IsA("StringValue") then currentWeather = wData.Value
+			elseif wData:GetAttribute("Current") then currentWeather = tostring(wData:GetAttribute("Current")) end
+		else
+			local clockTime = Lighting.ClockTime
+			if clockTime < 6 or clockTime > 18 then
+				currentWeather = "Night"
+			elseif Lighting:FindFirstChild("Atmosphere") and Lighting.Atmosphere.Density > 0.4 then
+				currentWeather = "Cloudy"
+			end
+		end
+	end)
+	return currentWeather
+end
+
 --// 4. Custom GUI & Toast Notification (Kanan Bawah)
 if CoreGui:FindFirstChild("DonnHubDashboard") then
 	CoreGui.DonnHubDashboard:Destroy()
@@ -212,6 +257,33 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "DonnHubDashboard"
 ScreenGui.Parent = CoreGui
 ScreenGui.IgnoreGuiInset = true
+
+-- Banner Status Bar di Atas Tengah Layar
+local TopStatusBar = Instance.new("Frame")
+TopStatusBar.Size = UDim2.new(0, 380, 0, 32)
+TopStatusBar.Position = UDim2.new(0.5, -190, 0, 10)
+TopStatusBar.BackgroundColor3 = Color3.fromRGB(15, 22, 18)
+TopStatusBar.BackgroundTransparency = 0.2
+TopStatusBar.BorderSizePixel = 0
+TopStatusBar.ZIndex = 25
+TopStatusBar.Parent = ScreenGui
+Instance.new("UICorner", TopStatusBar).CornerRadius = UDim.new(0, 8)
+local TopStroke = Instance.new("UIStroke")
+TopStroke.Color = Color3.fromRGB(0, 255, 130)
+TopStroke.Thickness = 1.5
+TopStroke.Parent = TopStatusBar
+
+local TopStatusText = Instance.new("TextLabel")
+TopStatusText.Size = UDim2.new(1, 0, 1, 0)
+TopStatusText.BackgroundTransparency = 1
+TopStatusText.TextColor3 = Color3.fromRGB(0, 255, 150)
+TopStatusText.TextSize = 13
+TopStatusText.Font = Enum.Font.GothamBold
+TopStatusText.TextXAlignment = Enum.TextXAlignment.Center
+TopStatusText.TextYAlignment = Enum.TextYAlignment.Center
+TopStatusText.ZIndex = 26
+TopStatusText.Text = "Status: Initializing Engine..."
+TopStatusText.Parent = TopStatusBar
 
 local ToastFrame = Instance.new("Frame")
 ToastFrame.Size = UDim2.new(0, 310, 0, 50)
@@ -257,156 +329,179 @@ task.spawn(function()
 	tweenOut:Play()
 end)
 
-local OpenButton = Instance.new("TextButton")
-OpenButton.Size = UDim2.new(0, 110, 0, 36)
-OpenButton.Position = UDim2.new(0, 15, 0.5, -18)
-OpenButton.BackgroundColor3 = Color3.fromRGB(12, 14, 16)
-OpenButton.TextColor3 = Color3.fromRGB(0, 255, 150)
-OpenButton.TextSize = 12
-OpenButton.Font = Enum.Font.GothamBold
-OpenButton.Text = "🌱 OPEN GUI"
-OpenButton.Visible = false
-OpenButton.ZIndex = 10
-OpenButton.Parent = ScreenGui
-Instance.new("UICorner", OpenButton).CornerRadius = UDim.new(0, 8)
-local OpenStroke = Instance.new("UIStroke")
-OpenStroke.Color = Color3.fromRGB(0, 255, 150)
-OpenStroke.Thickness = 1
-OpenStroke.Parent = OpenButton
-
+-- Main Frame (Full Screen Cover)
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 720, 0, 360)
-MainFrame.Position = UDim2.new(0.5, -360, 0.5, -180)
-MainFrame.BackgroundColor3 = Color3.fromRGB(12, 14, 16)
-MainFrame.BackgroundTransparency = 0.05
+MainFrame.Size = UDim2.new(1, 0, 1, 0)
+MainFrame.Position = UDim2.new(0, 0, 0, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(10, 12, 14)
+MainFrame.BackgroundTransparency = 0.15
 MainFrame.BorderSizePixel = 0
 MainFrame.ZIndex = 2
 MainFrame.Parent = ScreenGui
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
-local UIStroke = Instance.new("UIStroke")
-UIStroke.Color = Color3.fromRGB(35, 45, 40)
-UIStroke.Thickness = 1.5
-UIStroke.Parent = MainFrame
+
+-- Center Container untuk Panel
+local Container = Instance.new("Frame")
+Container.Size = UDim2.new(0, 780, 0, 480)
+Container.Position = UDim2.new(0.5, -390, 0.5, -240)
+Container.BackgroundColor3 = Color3.fromRGB(14, 18, 16)
+Container.BackgroundTransparency = 0.05
+Container.BorderSizePixel = 0
+Container.ZIndex = 3
+Container.Parent = MainFrame
+Instance.new("UICorner", Container).CornerRadius = UDim.new(0, 12)
+local ContainerStroke = Instance.new("UIStroke")
+ContainerStroke.Color = Color3.fromRGB(0, 255, 130)
+ContainerStroke.Thickness = 1.5
+ContainerStroke.Parent = Container
+
+-- Tombol Tunggal Hide/Open di Kiri Atas Layar
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(0, 120, 0, 36)
+ToggleButton.Position = UDim2.new(0, 15, 0, 55)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(15, 20, 18)
+ToggleButton.TextColor3 = Color3.fromRGB(0, 255, 150)
+ToggleButton.TextSize = 12
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.Text = "🌱 HIDE GUI"
+ToggleButton.ZIndex = 50
+ToggleButton.Parent = ScreenGui
+Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 8)
+local ToggleStroke = Instance.new("UIStroke")
+ToggleStroke.Color = Color3.fromRGB(0, 255, 150)
+ToggleStroke.Thickness = 1.5
+ToggleStroke.Parent = ToggleButton
 
 -- Kolom Kiri (Purchased Log)
 local LeftCol = Instance.new("ScrollingFrame")
-LeftCol.Size = UDim2.new(0, 155, 1, -65)
-LeftCol.Position = UDim2.new(0, 12, 0, 12)
+LeftCol.Size = UDim2.new(0, 175, 1, -85)
+LeftCol.Position = UDim2.new(0, 15, 0, 15)
 LeftCol.BackgroundColor3 = Color3.fromRGB(8, 10, 12)
 LeftCol.BackgroundTransparency = 0.4
 LeftCol.BorderSizePixel = 0
 LeftCol.ScrollBarThickness = 2
 LeftCol.CanvasSize = UDim2.new(0, 0, 5, 0)
-LeftCol.ZIndex = 3
-LeftCol.Parent = MainFrame
-Instance.new("UICorner", LeftCol).CornerRadius = UDim.new(0, 6)
+LeftCol.ZIndex = 4
+LeftCol.Parent = Container
+Instance.new("UICorner", LeftCol).CornerRadius = UDim.new(0, 8)
 
 local LeftText = Instance.new("TextLabel")
 LeftText.Size = UDim2.new(1, -8, 1, 0)
 LeftText.Position = UDim2.new(0, 4, 0, 4)
 LeftText.BackgroundTransparency = 1
 LeftText.TextColor3 = Color3.fromRGB(150, 170, 160)
-LeftText.TextSize = 9
+LeftText.TextSize = 10
 LeftText.Font = Enum.Font.Code
 LeftText.TextXAlignment = Enum.TextXAlignment.Left
 LeftText.TextYAlignment = Enum.TextYAlignment.Top
 LeftText.TextWrapped = true
-LeftText.ZIndex = 3
+LeftText.ZIndex = 4
 LeftText.Text = "[PURCHASED LOG]\n"
 LeftText.Parent = LeftCol
 
 -- Kolom Tengah (Farming Stats)
 local CenterCol = Instance.new("Frame")
-CenterCol.Size = UDim2.new(0, 370, 1, -65)
-CenterCol.Position = UDim2.new(0, 175, 0, 12)
+CenterCol.Size = UDim2.new(0, 390, 1, -85)
+CenterCol.Position = UDim2.new(0, 195, 0, 15)
 CenterCol.BackgroundTransparency = 1
-CenterCol.ZIndex = 3
-CenterCol.Parent = MainFrame
+CenterCol.ZIndex = 4
+CenterCol.Parent = Container
 
 local TitleCenter = Instance.new("TextLabel")
-TitleCenter.Size = UDim2.new(1, 0, 0, 22)
+TitleCenter.Size = UDim2.new(1, 0, 0, 25)
 TitleCenter.BackgroundTransparency = 1
 TitleCenter.Text = "FARMING & FULL CONFIG ENGINE"
 TitleCenter.TextColor3 = Color3.fromRGB(0, 255, 130)
-TitleCenter.TextSize = 15
+TitleCenter.TextSize = 16
 TitleCenter.Font = Enum.Font.GothamBold
-TitleCenter.ZIndex = 3
+TitleCenter.ZIndex = 4
 TitleCenter.Parent = CenterCol
 
 local StatsContent = Instance.new("TextLabel")
-StatsContent.Size = UDim2.new(1, 0, 1, -22)
-StatsContent.Position = UDim2.new(0, 0, 0, 22)
+StatsContent.Size = UDim2.new(1, 0, 1, -25)
+StatsContent.Position = UDim2.new(0, 0, 0, 25)
 StatsContent.BackgroundTransparency = 1
 StatsContent.TextColor3 = Color3.fromRGB(230, 245, 240)
-StatsContent.TextSize = 12
+StatsContent.TextSize = 13
 StatsContent.Font = Enum.Font.GothamBold
 StatsContent.TextXAlignment = Enum.TextXAlignment.Center
 StatsContent.TextYAlignment = Enum.TextYAlignment.Top
-StatsContent.ZIndex = 3
-StatsContent.Text = "Uptime 00:00:00\n\nLoading Config Rules...\nPlants: 0 / 0\nHarvested 0\nWeather Clear"
+StatsContent.ZIndex = 4
+StatsContent.Text = "Uptime 00:00:00\n\nLoading Config Rules...\nPlants: 0 / 0\nHarvested 0\nWeather: Sunny"
 StatsContent.Parent = CenterCol
 
--- Kolom Kanan (Shovel / Plant Log)
+-- Kolom Kanan (Shovel / Rare Seed Log)
 local RightCol = Instance.new("ScrollingFrame")
-RightCol.Size = UDim2.new(0, 155, 1, -65)
-RightCol.Position = UDim2.new(1, -167, 0, 12)
+RightCol.Size = UDim2.new(0, 175, 1, -85)
+RightCol.Position = UDim2.new(1, -190, 0, 15)
 RightCol.BackgroundColor3 = Color3.fromRGB(8, 10, 12)
 RightCol.BackgroundTransparency = 0.4
 RightCol.BorderSizePixel = 0
 RightCol.ScrollBarThickness = 2
 RightCol.CanvasSize = UDim2.new(0, 0, 5, 0)
-RightCol.ZIndex = 3
-RightCol.Parent = MainFrame
-Instance.new("UICorner", RightCol).CornerRadius = UDim.new(0, 6)
+RightCol.ZIndex = 4
+RightCol.Parent = Container
+Instance.new("UICorner", RightCol).CornerRadius = UDim.new(0, 8)
 
 local RightText = Instance.new("TextLabel")
 RightText.Size = UDim2.new(1, -8, 1, 0)
 RightText.Position = UDim2.new(0, 4, 0, 4)
 RightText.BackgroundTransparency = 1
 RightText.TextColor3 = Color3.fromRGB(150, 170, 160)
-RightText.TextSize = 9
+RightText.TextSize = 10
 RightText.Font = Enum.Font.Code
 RightText.TextXAlignment = Enum.TextXAlignment.Left
 RightText.TextYAlignment = Enum.TextYAlignment.Top
 RightText.TextWrapped = true
-RightText.ZIndex = 3
-RightText.Text = "[PLANT / SHOVEL]\n"
+RightText.ZIndex = 4
+RightText.Text = "[PLANT / RARE SEED]\n"
 RightText.Parent = RightCol
 
--- Bottom Bar (Buttons)
+-- Bottom Bar di dalam Container
 local BottomBar = Instance.new("Frame")
-BottomBar.Size = UDim2.new(1, -24, 0, 42)
-BottomBar.Position = UDim2.new(0, 12, 1, -48)
+BottomBar.Size = UDim2.new(1, -30, 0, 55)
+BottomBar.Position = UDim2.new(0, 15, 1, -65)
 BottomBar.BackgroundTransparency = 1
-BottomBar.ZIndex = 3
-BottomBar.Parent = MainFrame
+BottomBar.ZIndex = 4
+BottomBar.Parent = Container
 
-local HideButton = Instance.new("TextButton")
-HideButton.Size = UDim2.new(0.48, 0, 1, 0)
-HideButton.BackgroundColor3 = Color3.fromRGB(0, 230, 118)
-HideButton.TextColor3 = Color3.fromRGB(12, 14, 16)
-HideButton.TextSize = 13
-HideButton.Font = Enum.Font.GothamBold
-HideButton.Text = "HIDE GUI"
-HideButton.ZIndex = 4
-HideButton.Parent = BottomBar
-Instance.new("UICorner", HideButton).CornerRadius = UDim.new(0, 6)
-
+-- Console Button di atas
 local ConsoleButton = Instance.new("TextButton")
-ConsoleButton.Size = UDim2.new(0.48, 0, 1, 0)
-ConsoleButton.Position = UDim2.new(0.52, 0, 0, 0)
-ConsoleButton.BackgroundColor3 = Color3.fromRGB(24, 28, 32)
-ConsoleButton.TextColor3 = Color3.fromRGB(200, 220, 210)
-ConsoleButton.TextSize = 13
+ConsoleButton.Size = UDim2.new(0, 140, 0, 22)
+ConsoleButton.Position = UDim2.new(0.5, -70, 0, 0)
+ConsoleButton.BackgroundColor3 = Color3.fromRGB(22, 28, 25)
+ConsoleButton.TextColor3 = Color3.fromRGB(180, 220, 200)
+ConsoleButton.TextSize = 10
 ConsoleButton.Font = Enum.Font.GothamBold
 ConsoleButton.Text = "CONSOLE: ON"
-ConsoleButton.ZIndex = 4
+ConsoleButton.ZIndex = 5
 ConsoleButton.Parent = BottomBar
 Instance.new("UICorner", ConsoleButton).CornerRadius = UDim.new(0, 6)
+local ConsoleStroke = Instance.new("UIStroke")
+ConsoleStroke.Color = Color3.fromRGB(0, 255, 130)
+ConsoleStroke.Transparency = 0.5
+ConsoleStroke.Parent = ConsoleButton
+
+-- Status Label di Bawah Console Button
+local StatusInfoLabel = Instance.new("TextLabel")
+StatusInfoLabel.Size = UDim2.new(1, 0, 0, 24)
+StatusInfoLabel.Position = UDim2.new(0, 0, 0, 28)
+StatusInfoLabel.BackgroundTransparency = 1
+StatusInfoLabel.TextColor3 = Color3.fromRGB(120, 160, 140)
+StatusInfoLabel.TextSize = 11
+StatusInfoLabel.Font = Enum.Font.Gotham
+StatusInfoLabel.TextXAlignment = Enum.TextXAlignment.Center
+StatusInfoLabel.Text = "DonnHub Automation Engine Active & Protected"
+StatusInfoLabel.ZIndex = 5
+StatusInfoLabel.Parent = BottomBar
 
 local purchasedLogs = {}
 local plantShovelLogs = {}
 local currentStatus = "Starting Engine"
+
+local function updateTopStatus(text)
+	currentStatus = text
+	TopStatusText.Text = "Status: " .. text
+end
 
 local function pushPurchasedLog(msg)
 	if ConsoleButton.Text ~= "CONSOLE: ON" then return end
@@ -422,18 +517,18 @@ local function pushPlantShovelLog(msg)
 	local timestamp = os.date("%H:%M:%S")
 	table.insert(plantShovelLogs, 1, string.format("[%s] %s", timestamp, msg))
 	if #plantShovelLogs > 30 then table.remove(plantShovelLogs) end
-	RightText.Text = "[PLANT / SHOVEL]\n" .. table.concat(plantShovelLogs, "\n")
+	RightText.Text = "[PLANT / RARE SEED]\n" .. table.concat(plantShovelLogs, "\n")
 	writeDebugLog("GAG_Plant_Shovel_Log", msg)
 end
 
-HideButton.MouseButton1Click:Connect(function()
-	MainFrame.Visible = false
-	OpenButton.Visible = true
-end)
-
-OpenButton.MouseButton1Click:Connect(function()
-	MainFrame.Visible = true
-	OpenButton.Visible = false
+ToggleButton.MouseButton1Click:Connect(function()
+	if MainFrame.Visible then
+		MainFrame.Visible = false
+		ToggleButton.Text = "🌱 OPEN GUI"
+	else
+		MainFrame.Visible = true
+		ToggleButton.Text = "🌱 HIDE GUI"
+	end
 end)
 
 ConsoleButton.MouseButton1Click:Connect(function()
@@ -441,10 +536,10 @@ ConsoleButton.MouseButton1Click:Connect(function()
 		ConsoleButton.Text = "CONSOLE: OFF"
 		ConsoleButton.TextColor3 = Color3.fromRGB(120, 120, 120)
 		LeftText.Text = "[PURCHASED LOG]\n(Console Paused)"
-		RightText.Text = "[PLANT / SHOVEL]\n(Console Paused)"
+		RightText.Text = "[PLANT / RARE SEED]\n(Console Paused)"
 	else
 		ConsoleButton.Text = "CONSOLE: ON"
-		ConsoleButton.TextColor3 = Color3.fromRGB(200, 220, 210)
+		ConsoleButton.TextColor3 = Color3.fromRGB(180, 220, 200)
 	end
 end)
 
@@ -509,9 +604,9 @@ task.spawn(function()
 	end)
 end)
 
--- Auto Positioning Task: Memastikan karakter selalu berada di dalam garden
+-- Auto Positioning Loop
 task.spawn(function()
-	while task.wait(5) do
+	while task.wait(3) do
 		moveToGarden()
 	end
 end)
@@ -542,10 +637,11 @@ task.spawn(function()
 			local currentPlantsTotal = #myPlantModels()
 			local plantLimitConfig = PlantCfg["Plant Limit"] or 0
 			local plantLimitStr = plantLimitConfig > 0 and tostring(plantLimitConfig) or "OFF"
+			local liveWeather = getActiveWeather()
 
 			StatsContent.Text = string.format(
-				"Uptime %s\n\n%s Sheckles\n+%s\n\nPlants: %d / %s\nHarvested %.1fK\nStatus: %s\n\nWeather Clear",
-				uptimeFormatted, shecklesStr, rateStr, currentPlantsTotal, plantLimitStr, harvestedCount / 1000, currentStatus
+				"Uptime %s\n\n%s Sheckles\n+%s\n\nPlants: %d / %s\nHarvested %.1fK\nStatus: %s\n\nWeather: %s",
+				uptimeFormatted, shecklesStr, rateStr, currentPlantsTotal, plantLimitStr, harvestedCount / 1000, currentStatus, liveWeather
 			)
 		end)
 	end
@@ -567,14 +663,14 @@ task.spawn(function()
 						end
 						
 						if not skip then
-							currentStatus = "Harvesting: " .. tostring(e.name)
+							updateTopStatus("Harvesting: " .. tostring(e.name))
 							fire("Garden", "CollectFruit", e.plantId, e.fruitId)
 							harvestedCount = harvestedCount + 1
 							task.wait(0.1)
 						end
 					end
 				else
-					currentStatus = "Idle / Running"
+					updateTopStatus("Idle / Running")
 				end
 			end
 		end)
@@ -586,9 +682,9 @@ task.spawn(function()
 	while task.wait(HarvestCfg["Sell Every"] or 40) do
 		pcall(function()
 			if HarvestCfg["Auto Harvest"] ~= false and Net then
-				currentStatus = "Selling Inventory..."
+				updateTopStatus("Selling Fruit / Inventory...")
 				local sellRes = invoke({ "NPCS", "SellAll" })
-				if sellRes ~= false then
+				if sellRes ~= false and sellRes ~= nil then
 					pushPurchasedLog("sold inventory (SellAll)")
 				end
 			end
@@ -615,11 +711,11 @@ task.spawn(function()
 							end
 
 							if not isBlocked then
-								currentStatus = "Buying Seed: " .. tostring(seedName)
+								updateTopStatus("Buying Seed: " .. tostring(seedName))
 								local res = invoke({ "SeedShop", "PurchaseSeed" }, seedName)
 								if res ~= false and res ~= nil then
 									purchaseCounters[seedName] = purchaseCounters[seedName] + 1
-									pushPurchasedLog(string.format("buy seed %s (%d/%d)", seedName, purchaseCounters[seedName], maxTarget))
+									pushPurchasedLog(string.format("beli benih %s (%d/%d)", seedName, purchaseCounters[seedName], maxTarget))
 								end
 								task.wait(0.2)
 							end
@@ -631,35 +727,19 @@ task.spawn(function()
 	end
 end)
 
--- 4. Buy Gear & Place Sprinklers Loop
+-- 4. Buy Gear Loop
 local gearBuyList = GearCfg["Buy Gear"] or {}
 task.spawn(function()
 	while task.wait(10) do
 		pcall(function()
 			if GearCfg["Auto Buy"] and Net then
 				for _, gearName in ipairs(gearBuyList) do
-					currentStatus = "Buying Gear: " .. tostring(gearName)
+					updateTopStatus("Buying Gear: " .. tostring(gearName))
 					local res = invoke({ "GearShop", "PurchaseGear" }, gearName)
 					if res ~= false and res ~= nil then
-						pushPurchasedLog("buy gear " .. tostring(gearName))
+						pushPurchasedLog("beli gear " .. tostring(gearName))
 					end
 					task.wait(0.5)
-				end
-			end
-		end)
-	end
-end)
-
-task.spawn(function()
-	while task.wait(15) do
-		pcall(function()
-			if GearCfg["Place Sprinklers"] and Net then
-				currentStatus = "Placing Sprinklers..."
-				for _, tool in ipairs(getToolsWithAttribute("SprinklerTool")) do
-					local sprinklerName = tool.Name or ""
-					fire("Garden", "PlaceSprinkler", tool, getPlantPosition())
-					pushPurchasedLog("placed sprinkler: " .. tostring(sprinklerName))
-					task.wait(1)
 				end
 			end
 		end)
@@ -676,26 +756,43 @@ task.spawn(function()
 				
 				if plantLimit > 0 and #plants > plantLimit then
 					local neverShovel = PlantCfg["Never Shovel"] or {}
-					for i = plantLimit + 1, #plants do
+					local excessCount = #plants - plantLimit
+					local shoveledThisCycle = 0
+					
+					for i = 1, #plants do
+						if shoveledThisCycle >= excessCount then break end
 						local p = plants[i]
 						if p and p:GetAttribute("PlantId") then
 							local pName = p:GetAttribute("SeedName") or p.Name or "Unknown Crop"
 							local safe = false
+							
 							for _, ns in ipairs(neverShovel) do
 								if string.lower(pName) == string.lower(ns) then safe = true break end
 							end
+							
+							local isGold = p:GetAttribute("Gold") or false
+							local isRainbow = p:GetAttribute("Rainbow") or false
+							local isMega = p:GetAttribute("Mega") or false
+							
+							if (EventSeedCfg["Never Shovel Gold"] and isGold) or
+							   (EventSeedCfg["Never Shovel Rainbow"] and isRainbow) or
+							   (EventSeedCfg["Never Shovel Mega"] and isMega) then
+								safe = true
+							end
+
 							if not safe then
-								currentStatus = "Shoveling excess plant..."
+								updateTopStatus("Shoveling excess: " .. tostring(pName))
 								local successShovel = pcall(function()
 									fire("Garden", "ShovelPlant", p:GetAttribute("PlantId"))
 								end)
 								
 								if successShovel then
 									pushPlantShovelLog(string.format("[SUKSES] Shovel %s", tostring(pName)))
+									shoveledThisCycle = shoveledThisCycle + 1
 								else
 									pushPlantShovelLog(string.format("[GAGAL] Shovel %s", tostring(pName)))
 								end
-								task.wait(0.2)
+								task.wait(0.15)
 							end
 						end
 					end
@@ -704,7 +801,16 @@ task.spawn(function()
 				for _, tool in ipairs(getToolsWithAttribute("SeedTool")) do
 					local seedName = tool:GetAttribute("SeedTool") or "Seed"
 					if isSeedAllowed(seedName, tool) then
-						currentStatus = "Planting: " .. tostring(seedName)
+						local isGold = tool:GetAttribute("Gold") or false
+						local isRainbow = tool:GetAttribute("Rainbow") or false
+						local isMega = tool:GetAttribute("Mega") or false
+						
+						local variantTag = ""
+						if isGold then variantTag = "[GOLD] "
+						elseif isRainbow then variantTag = "[RAINBOW] "
+						elseif isMega then variantTag = "[MEGA] " end
+
+						updateTopStatus("Planting: " .. variantTag .. tostring(seedName))
 						local pos = getPlantPosition()
 						local _, _, hum = getCharacter()
 						if pos and hum then
@@ -716,10 +822,11 @@ task.spawn(function()
 							end)
 							
 							if successPlant then
-								pushPlantShovelLog(string.format("[SUKSES] Tanam %s", tostring(seedName)))
+								pushPlantShovelLog(string.format("[SUKSES] Tanam %s%s", variantTag, tostring(seedName)))
 							else
-								pushPlantShovelLog(string.format("[GAGAL] Tanam %s", tostring(seedName)))
+								pushPlantShovelLog(string.format("[GAGAL] Tanam %s%s", variantTag, tostring(seedName)))
 							end
+							task.wait(0.15)
 						end
 					end
 				end
@@ -735,18 +842,26 @@ task.spawn(function()
 			if EggsCfg["Auto Open"] and Net then
 				local openList = EggsCfg["Open"] or {}
 				for _, eggName in ipairs(openList) do
-					currentStatus = "Opening Egg: " .. tostring(eggName)
-					local eggRes = invoke({ "Egg", "OpenEgg" }, eggName)
-					if eggRes ~= false and eggRes ~= nil then
-						pushPurchasedLog("opened egg: " .. tostring(eggName))
+					if eggName ~= "all" and hasItemInInventory(eggName) then
+						updateTopStatus("Opening Egg: " .. tostring(eggName))
+						local eggRes = invoke({ "Egg", "OpenEgg" }, eggName)
+						if eggRes ~= false and eggRes ~= nil then
+							pushPurchasedLog("buka egg " .. tostring(eggName))
+						end
 					end
 					task.wait(0.5)
 				end
 			end
 			
 			if PetsCfg and PetsCfg["Auto Hatch"] and Net then
-				currentStatus = "Hatching Pets..."
-				invoke({ "Pets", "HatchEgg" }, PetsCfg["Target Egg"] or "Common Egg")
+				local targetEgg = PetsCfg["Target Egg"] or "Common Egg"
+				if hasItemInInventory(targetEgg) then
+					updateTopStatus("Hatching Pets...")
+					local hatchRes = invoke({ "Pets", "HatchEgg" }, targetEgg)
+					if hatchRes ~= false and hatchRes ~= nil then
+						pushPurchasedLog("beli/tetas pet " .. tostring(targetEgg))
+					end
+				end
 			end
 		end)
 	end
@@ -759,10 +874,10 @@ task.spawn(function()
 			if AuctionCfg["Auto Buy"] and Net then
 				local buyItems = AuctionCfg["Buy"] or {}
 				for itemName, maxPrice in pairs(buyItems) do
-					currentStatus = "Checking Auction: " .. tostring(itemName)
+					updateTopStatus("Checking Auction: " .. tostring(itemName))
 					local aucRes = fire("Auctioneer", "PurchaseLot", itemName, maxPrice)
 					if aucRes ~= false and aucRes ~= nil then
-						pushPurchasedLog("auction won: " .. tostring(itemName))
+						pushPurchasedLog("beli lelang " .. tostring(itemName))
 					end
 				end
 			end
@@ -775,11 +890,8 @@ task.spawn(function()
 	while task.wait(30) do
 		pcall(function()
 			if MailCfg["Auto Claim"] and Net then
-				currentStatus = "Claiming Mailbox..."
-				local mailRes = fire("Mailbox", "ClaimAll")
-				if mailRes ~= false then
-					pushPurchasedLog("claimed mailbox items")
-				end
+				updateTopStatus("Claiming Mailbox...")
+				fire("Mailbox", "ClaimAll")
 			end
 		end)
 	end
@@ -795,4 +907,4 @@ task.spawn(function()
 	end
 end)
 
-print("[DonnHub] Script successfully loaded with Auto-Garden Positioning!")
+print("[DonnHub] Script successfully loaded with Full Automation Engine!")

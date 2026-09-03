@@ -1,4 +1,4 @@
--- File: loader/Core-Logic.lua (Instant Teleport Auto-Farm Engine)
+-- File: loader/Core-Logic.lua (Full Auto-Farm + Auto-Sell Engine)
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
@@ -21,59 +21,52 @@ ScreenGui.Parent = CoreGui
 ScreenGui.IgnoreGuiInset = true
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 460, 0, 260)
-MainFrame.Position = UDim2.new(0.5, -230, 0.5, -130)
-MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
-MainFrame.BackgroundTransparency = 0.08
+MainFrame.Size = UDim2.new(0, 620, 0, 380)
+MainFrame.Position = UDim2.new(0.5, -310, 0.5, -190)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+MainFrame.BackgroundTransparency = 0.1
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
 
 local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.CornerRadius = UDim.new(0, 12)
 MainCorner.Parent = MainFrame
 
-local TopBar = Instance.new("Frame")
-TopBar.Size = UDim2.new(1, 0, 0, 38)
-TopBar.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
-TopBar.BorderSizePixel = 0
-TopBar.Parent = MainFrame
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(40, 40, 50)
+UIStroke.Thickness = 1
+UIStroke.Parent = MainFrame
 
-local TopCorner = Instance.new("UICorner")
-TopCorner.CornerRadius = UDim.new(0, 10)
-TopCorner.Parent = TopBar
-
-local FixCover = Instance.new("Frame")
-FixCover.Size = UDim2.new(1, 0, 0, 10)
-FixCover.Position = UDim2.new(0, 0, 1, -10)
-FixCover.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
-FixCover.BorderSizePixel = 0
-FixCover.Parent = TopBar
+local Header = Instance.new("Frame")
+Header.Size = UDim2.new(1, 0, 0, 45)
+Header.BackgroundTransparency = 1
+Header.Parent = MainFrame
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -60, 1, 0)
-Title.Position = UDim2.new(0, 15, 0, 0)
+Title.Size = UDim2.new(1, -70, 1, 0)
+Title.Position = UDim2.new(0, 20, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "DONNHUB  //  INSTANT AUTO-FARM"
+Title.Text = "DONNHUB  //  GROW A GARDEN 2 CONTROL PANEL"
 Title.TextColor3 = Color3.fromRGB(0, 255, 150)
 Title.TextSize = 13
 Title.Font = Enum.Font.GothamBold
 Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.Parent = TopBar
+Title.Parent = Header
 
 local HideButton = Instance.new("TextButton")
-HideButton.Size = UDim2.new(0, 30, 0, 30)
-HideButton.Position = UDim2.new(1, -35, 0, 4)
+HideButton.Size = UDim2.new(0, 35, 0, 35)
+HideButton.Position = UDim2.new(1, -45, 0, 5)
 HideButton.BackgroundTransparency = 1
 HideButton.TextColor3 = Color3.fromRGB(160, 160, 180)
-HideButton.TextSize = 18
+HideButton.TextSize = 16
 HideButton.Font = Enum.Font.GothamBold
-HideButton.Text = "-"
-HideButton.Parent = TopBar
+HideButton.Text = "—"
+HideButton.Parent = Header
 
 local OpenButton = Instance.new("TextButton")
-OpenButton.Size = UDim2.new(0, 85, 0, 32)
-OpenButton.Position = UDim2.new(0, 15, 0.5, -16)
-OpenButton.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+OpenButton.Size = UDim2.new(0, 90, 0, 35)
+OpenButton.Position = UDim2.new(0, 15, 0.5, -17)
+OpenButton.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
 OpenButton.TextColor3 = Color3.fromRGB(0, 255, 150)
 OpenButton.TextSize = 12
 OpenButton.Font = Enum.Font.GothamBold
@@ -82,8 +75,13 @@ OpenButton.Visible = false
 OpenButton.Parent = ScreenGui
 
 local OpenCorner = Instance.new("UICorner")
-OpenCorner.CornerRadius = UDim.new(0, 6)
+OpenCorner.CornerRadius = UDim.new(0, 8)
 OpenCorner.Parent = OpenButton
+
+local OpenStroke = Instance.new("UIStroke")
+OpenStroke.Color = Color3.fromRGB(40, 40, 50)
+OpenStroke.Thickness = 1
+OpenStroke.Parent = OpenButton
 
 HideButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = false
@@ -95,33 +93,34 @@ OpenButton.MouseButton1Click:Connect(function()
     OpenButton.Visible = false
 end)
 
-local ContentBox = Instance.new("Frame")
-ContentBox.Size = UDim2.new(1, -24, 1, -58)
-ContentBox.Position = UDim2.new(0, 12, 0, 48)
-ContentBox.BackgroundColor3 = Color3.fromRGB(12, 12, 15)
-ContentBox.BackgroundTransparency = 0.4
-ContentBox.BorderSizePixel = 0
-ContentBox.Parent = MainFrame
+local ContentArea = Instance.new("Frame")
+ContentArea.Size = UDim2.new(1, -30, 1, -55)
+ContentArea.Position = UDim2.new(0, 15, 0, 45)
+ContentArea.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
+ContentArea.BackgroundTransparency = 0.4
+ContentArea.BorderSizePixel = 0
+ContentArea.Parent = MainFrame
 
 local ContentCorner = Instance.new("UICorner")
-ContentCorner.CornerRadius = UDim.new(0, 6)
-ContentCorner.Parent = ContentBox
+ContentCorner.CornerRadius = UDim.new(0, 8)
+ContentCorner.Parent = ContentArea
 
 local StatsLabel = Instance.new("TextLabel")
-StatsLabel.Size = UDim2.new(1, -20, 1, -20)
-StatsLabel.Position = UDim2.new(0, 10, 0, 10)
+StatsLabel.Size = UDim2.new(1, -30, 1, -20)
+StatsLabel.Position = UDim2.new(0, 15, 0, 10)
 StatsLabel.BackgroundTransparency = 1
 StatsLabel.TextColor3 = Color3.fromRGB(210, 210, 225)
 StatsLabel.TextSize = 13
 StatsLabel.Font = Enum.Font.Code
 StatsLabel.TextXAlignment = Enum.TextXAlignment.Left
 StatsLabel.TextYAlignment = Enum.TextYAlignment.Top
-StatsLabel.Text = "Menghubungkan mesin teleport..."
-StatsLabel.Parent = ContentBox
+StatsLabel.Text = "Memuat sistem auto-sell & farm..."
+StatsLabel.Parent = ContentArea
 
--- Live Counter
+-- Live Counter & Stats Engine
 local startTime = tick()
 local harvestedCount = 0
+local soldCount = 0
 
 task.spawn(function()
     while task.wait(1) do
@@ -139,15 +138,18 @@ task.spawn(function()
             end
 
             StatsLabel.Text = string.format(
-                " [ Status ] : Instant Farming Active\n [ Uptime ] : %s\n [ Sheckles ] : %s\n\n [ Harvest ] : ACTIVE\n [ Harvested Items ] : %d",
-                uptimeFormatted, sheckles, harvestedCount
+                " [ ENGINE STATUS ] : Fully Automated & Running\n [ UPTIME ]        : %s\n [ SHECKLES ]      : %s\n\n [ CONFIG SYNC ]\n   • Auto Harvest  : Active (ON)\n   • Auto Sell At  : %s%%\n   • Walk Speed    : %s\n\n [ STATISTICS ]\n   • Harvested     : %d Crops\n   • Sold Actions  : %d Times",
+                uptimeFormatted, sheckles, 
+                tostring(HarvestCfg["Sell At"] or "85"),
+                tostring(MiscCfg["Walk Speed"] or "Default"),
+                harvestedCount, soldCount
             )
         end)
     end
 end)
 
 -- ==========================================================
--- MESIN TELEPORT & AUTO-HARVEST INSTAN
+-- MESIN AUTOMATION & AUTO-SELL LENGKAP
 -- ==========================================================
 task.spawn(function()
     pcall(function()
@@ -161,23 +163,32 @@ task.spawn(function()
     end)
 end)
 
--- Loop Utama: Teleport instan ke tanaman di dalam folder _Gardens
 task.spawn(function()
-    while task.wait(1.5) do
+    while task.wait(2) do
+        pcall(function()
+            local speed = MiscCfg["Walk Speed"] or 0
+            if speed > 0 and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                LocalPlayer.Character.Humanoid.WalkSpeed = speed
+            end
+        end)
+    end
+end)
+
+-- Auto Harvest & Teleport
+task.spawn(function()
+    while task.wait(1) do
         pcall(function()
             if HarvestCfg["Auto Harvest"] then
                 local gardensFolder = Workspace:FindFirstChild("_Gardens")
                 local char = LocalPlayer.Character
                 if gardensFolder and char and char:FindFirstChild("HumanoidRootPart") then
                     local hrp = char.HumanoidRootPart
-                    
                     for _, plot in pairs(gardensFolder:GetChildren()) do
                         for _, crop in pairs(plot:GetChildren()) do
                             local targetPart = crop:IsA("Model") and crop.PrimaryPart or (crop:IsA("BasePart") and crop or nil)
                             if targetPart then
-                                -- Teleport langsung mendekati posisi tanaman
-                                hrp.CFrame = targetPart.CFrame + Vector3.new(0, 3, 0)
-                                task.wait(0.3)
+                                hrp.CFrame = targetPart.CFrame + Vector3.new(0, 4, 0)
+                                task.wait(0.4)
                             end
                         end
                     end
@@ -187,15 +198,15 @@ task.spawn(function()
     end
 end)
 
--- Loop Interaksi Prompt Otomatis
+-- Auto Prompt Interactor
 task.spawn(function()
-    while task.wait(0.5) do
+    while task.wait(0.4) do
         pcall(function()
             if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
                 local hrp = LocalPlayer.Character.HumanoidRootPart
                 for _, obj in pairs(Workspace:GetDescendants()) do
                     if obj:IsA("ProximityPrompt") then
-                        if (obj.Parent.Position - hrp.Position).Magnitude < 15 then
+                        if (obj.Parent.Position - hrp.Position).Magnitude < 20 then
                             fireproximityprompt(obj)
                             harvestedCount = harvestedCount + 1
                         end
@@ -206,4 +217,24 @@ task.spawn(function()
     end
 end)
 
-print("[DonnHub] Instant Teleport Engine Berhasil Diaktifkan!")
+-- Mesin Auto Sell (Mendeteksi tombol atau area penjualan Sheckles di map)
+task.spawn(function()
+    while task.wait(5) do
+        pcall(function()
+            -- Mencari objek interaksi atau tombol jual (Sell) di workspace
+            for _, obj in pairs(Workspace:GetDescendants()) do
+                if obj:IsA("ProximityPrompt") and (string.lower(obj.ActionText):find("sell") or string.lower(obj.ObjectText):find("sell")) then
+                    local char = LocalPlayer.Character
+                    if char and char:FindFirstChild("HumanoidRootPart") then
+                        if (obj.Parent.Position - char.HumanoidRootPart.Position).Magnitude < 30 then
+                            fireproximityprompt(obj)
+                            soldCount = soldCount + 1
+                        end
+                    end
+                end
+            end
+        end)
+    end
+end)
+
+print("[DonnHub] Full Automation + Auto-Sell Engine Berhasil Dimuat!")

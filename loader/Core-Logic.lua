@@ -1,4 +1,4 @@
--- File: loader/Core-Logic.lua (Ultimate Full Edition + Delta File Logging + 3-Column GUI)
+-- File: loader/Core-Logic.lua (Ultimate Full-Edition Config Engine & GUI)
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
@@ -9,7 +9,7 @@ local CoreGui           = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
 
--- Mengambil seluruh konfigurasi lengkap secara menyeluruh sesuai default config Anda
+-- Mengambil seluruh konfigurasi lengkap secara menyeluruh dari _G.GAGConfig
 local Config        = _G.GAGConfig or {}
 local HarvestCfg    = Config["Harvest"] or {}
 local PlantCfg      = Config["Planting"] or {}
@@ -26,7 +26,7 @@ local EggsCfg       = Config["Eggs"] or {}
 local PerfCfg       = Config["Performance"] or {}
 local DebugCfg      = Config["Debug"] or {}
 
---// 1. Delta File Logging System
+--// 1. Delta File Logging System (Debug Log to File)
 local function writeDebugLog(fileName, message)
 	pcall(function()
 		if DebugCfg["Log To File"] and writefile and appendfile then
@@ -166,6 +166,22 @@ local function getPlantPosition()
 	return part.Position + Vector3.new((math.random()-0.5)*2, part.Size.Y/2, (math.random()-0.5)*2)
 end
 
+local function myPlantModels()
+	local out = {}
+	local gardens = Workspace:FindFirstChild("Gardens")
+	if not gardens then return out end
+	local myId = LocalPlayer.UserId
+	for _, garden in ipairs(gardens:GetChildren()) do
+		local plants = garden:FindFirstChild("Plants")
+		if plants then
+			for _, plant in ipairs(plants:GetChildren()) do
+				if tonumber(plant:GetAttribute("UserId")) == myId then out[#out + 1] = plant end
+			end
+		end
+	end
+	return out
+end
+
 --// 4. Custom GUI 3-Column Construction
 if CoreGui:FindFirstChild("DonnHubDashboard") then
 	CoreGui.DonnHubDashboard:Destroy()
@@ -245,7 +261,7 @@ CenterCol.Parent = MainFrame
 local TitleCenter = Instance.new("TextLabel")
 TitleCenter.Size = UDim2.new(1, 0, 0, 22)
 TitleCenter.BackgroundTransparency = 1
-TitleCenter.Text = "FARMING & CONFIG ENGINE"
+TitleCenter.Text = "FARMING & FULL CONFIG ENGINE"
 TitleCenter.TextColor3 = Color3.fromRGB(0, 255, 130)
 TitleCenter.TextSize = 15
 TitleCenter.Font = Enum.Font.GothamBold
@@ -262,7 +278,7 @@ StatsContent.Font = Enum.Font.GothamBold
 StatsContent.TextXAlignment = Enum.TextXAlignment.Center
 StatsContent.TextYAlignment = Enum.TextYAlignment.Top
 StatsContent.ZIndex = 3
-StatsContent.Text = "Uptime 00:00:00\n\nLoading Config...\nHarvested 0\nWeather Clear"
+StatsContent.Text = "Uptime 00:00:00\n\nLoading Config Rules...\nHarvested 0\nWeather Clear"
 StatsContent.Parent = CenterCol
 
 -- Kolom Kanan (Shovel / Plant Log)
@@ -367,7 +383,35 @@ ConsoleButton.MouseButton1Click:Connect(function()
 	end
 end)
 
---// 5. Config Enforcement & Automation Engine
+--// 5. Strict Config Enforcement Helper Functions
+local function isSeedAllowed(seedName)
+	if not seedName then return false end
+	
+	-- Cek Don't Plant
+	local dontPlant = PlantCfg["Don't Plant"] or {}
+	for _, dp in ipairs(dontPlant) do
+		if string.lower(tostring(seedName)) == string.lower(tostring(dp)) then
+			return false
+		end
+	end
+
+	-- Cek Only Plant
+	local onlyPlant = PlantCfg["Only Plant"] or {}
+	if type(onlyPlant) == "table" and #onlyPlant > 0 then
+		local found = false
+		for _, op in ipairs(onlyPlant) do
+			if string.lower(tostring(seedName)) == string.lower(tostring(op)) then
+				found = true
+				break
+			end
+		end
+		if not found then return false end
+	end
+
+	return true
+end
+
+--// 6. Config Enforcement & Automation Engine
 local startTime = tick()
 local initialSheckles = 0
 local currentShecklesNum = 0
@@ -425,18 +469,27 @@ task.spawn(function()
 	end
 end)
 
--- 1. Harvest Loop
+-- 1. Harvest Loop (Enforcing Don't Harvest & Wait For Mutation)
 task.spawn(function()
 	while task.wait(0.25) do
 		pcall(function()
 			if HarvestCfg["Auto Harvest"] ~= false and Net then
 				local list = scanCollectibleDetailed()
+				local dontHarvestList = HarvestCfg["Don't Harvest"] or {}
+				
 				if #list > 0 then
 					for _, e in ipairs(list) do
-						currentStatus = "Harvesting: " .. tostring(e.name)
-						fire("Garden", "CollectFruit", e.plantId, e.fruitId)
-						harvestedCount = harvestedCount + 1
-						pushShovelLog("+ harvest " .. tostring(e.name))
+						local skip = false
+						for _, dh in ipairs(dontHarvestList) do
+							if string.lower(e.name) == string.lower(dh) then skip = true break end
+						end
+						
+						if not skip then
+							currentStatus = "Harvesting: " .. tostring(e.name)
+							fire("Garden", "CollectFruit", e.plantId, e.fruitId)
+							harvestedCount = harvestedCount + 1
+							pushShovelLog("+ harvest " .. tostring(e.name))
+						end
 					end
 				else
 					currentStatus = "Idle / Running"
@@ -446,7 +499,7 @@ task.spawn(function()
 	end
 end)
 
--- 2. Sell Loop
+-- 2. Sell Loop (Enforcing Sell Every)
 task.spawn(function()
 	while task.wait(HarvestCfg["Sell Every"] or 40) do
 		pcall(function()
@@ -459,26 +512,34 @@ task.spawn(function()
 	end
 end)
 
--- 3. Buy Seeds Loop
+-- 3. Buy Seeds Loop (Enforcing Buy Seeds Config & Don't Buy)
 local seedsToBuyMap = PlantCfg["Buy Seeds"] or {}
+local dontBuyList = PlantCfg["Don't Buy"] or {}
 task.spawn(function()
 	while task.wait(5) do
 		pcall(function()
 			if Net then
 				for seedName, _ in pairs(seedsToBuyMap) do
-					currentStatus = "Buying Seed: " .. tostring(seedName)
-					local res = invoke({ "SeedShop", "PurchaseSeed" }, seedName)
-					if res ~= false and res ~= nil then
-						pushPurchasedLog("buy seed " .. tostring(seedName))
+					local isBlocked = false
+					for _, db in ipairs(dontBuyList) do
+						if string.lower(seedName) == string.lower(db) then isBlocked = true break end
 					end
-					task.wait(0.2)
+
+					if not isBlocked then
+						currentStatus = "Buying Seed: " .. tostring(seedName)
+						local res = invoke({ "SeedShop", "PurchaseSeed" }, seedName)
+						if res ~= false and res ~= nil then
+							pushPurchasedLog("buy seed " .. tostring(seedName))
+						end
+						task.wait(0.2)
+					end
 				end
 			end
 		end)
 	end
 end)
 
--- 4. Buy Gear Loop
+-- 4. Buy Gear Loop (Enforcing Gear Buy Config)
 local gearBuyList = GearCfg["Buy Gear"] or {}
 task.spawn(function()
 	while task.wait(10) do
@@ -497,27 +558,36 @@ task.spawn(function()
 	end
 end)
 
--- 5. Plant Loop
-local allowedPlants = PlantCfg["Only Plant"] or {}
+-- 5. Plant Loop (Strictly Enforcing Don't Plant, Only Plant, & Plant Limit)
 task.spawn(function()
 	while task.wait(1.5) do
 		pcall(function()
 			if PlantCfg["Auto Plant"] ~= false and Net then
-				for _, tool in ipairs(getToolsWithAttribute("SeedTool")) do
-					local seedName = tool:GetAttribute("SeedTool")
-					
-					local isAllowed = true
-					if type(allowedPlants) == "table" and #allowedPlants > 0 then
-						isAllowed = false
-						for _, allowed in ipairs(allowedPlants) do
-							if string.lower(tostring(seedName)) == string.lower(tostring(allowed)) then
-								isAllowed = true
-								break
+				local plantLimit = PlantCfg["Plant Limit"] or 0
+				local plants = myPlantModels()
+				if plantLimit > 0 and #plants > plantLimit then
+					local neverShovel = PlantCfg["Never Shovel"] or {}
+					for i = plantLimit + 1, #plants do
+						local p = plants[i]
+						if p and p:GetAttribute("PlantId") then
+							local pName = p:GetAttribute("SeedName") or ""
+							local safe = false
+							for _, ns in ipairs(neverShovel) do
+								if string.lower(pName) == string.lower(ns) then safe = true break end
+							end
+							if not safe then
+								currentStatus = "Shoveling excess plant..."
+								fire("Garden", "ShovelPlant", p:GetAttribute("PlantId"))
+								pushShovelLog("shovel excess " .. tostring(pName))
+								task.wait(0.2)
 							end
 						end
 					end
+				end
 
-					if isAllowed then
+				for _, tool in ipairs(getToolsWithAttribute("SeedTool")) do
+					local seedName = tool:GetAttribute("SeedTool")
+					if isSeedAllowed(seedName) then
 						currentStatus = "Planting: " .. tostring(seedName)
 						local pos = getPlantPosition()
 						local _, _, hum = getCharacter()
@@ -534,7 +604,7 @@ task.spawn(function()
 	end
 end)
 
--- 6. Open Eggs Loop
+-- 6. Open Eggs Loop (Enforcing Eggs Open List)
 task.spawn(function()
 	while task.wait(4) do
 		pcall(function()
@@ -551,7 +621,7 @@ task.spawn(function()
 	end
 end)
 
--- 7. Auctioneer Auto Buy Loop
+-- 7. Auctioneer Auto Buy Loop (Enforcing Auction Buy List)
 task.spawn(function()
 	while task.wait(AuctionCfg["Check Every"] or 0.2) do
 		pcall(function()
@@ -589,4 +659,4 @@ task.spawn(function()
 	end
 end)
 
-print("[DonnHub] Ultimate Full-Edition & Delta File Logging Loaded Successfully!")
+print("[DonnHub] Ultimate Full-Edition Config Engine & File Logger Active!")

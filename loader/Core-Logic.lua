@@ -1,4 +1,4 @@
--- File: loader/Core-Logic.lua (Stable Auto-Farm + Dedicated Safe Auto-Sell)
+-- File: loader/Core-Logic.lua (Universal Direct Crop Finder & Teleport)
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
@@ -7,7 +7,6 @@ local LocalPlayer = Players.LocalPlayer
 
 local Config = _G.GAGConfig or {}
 local HarvestCfg = Config["Harvest"] or {}
-local PlantCfg = Config["Planting"] or {}
 local PerfCfg = Config["Performance"] or {}
 local MiscCfg = Config["Misc"] or {}
 
@@ -114,13 +113,12 @@ StatsLabel.TextSize = 13
 StatsLabel.Font = Enum.Font.Code
 StatsLabel.TextXAlignment = Enum.TextXAlignment.Left
 StatsLabel.TextYAlignment = Enum.TextYAlignment.Top
-StatsLabel.Text = "Memuat mesin kebun & auto-sell..."
+StatsLabel.Text = "Memindai seluruh objek kebun secara universal..."
 StatsLabel.Parent = ContentArea
 
 -- Live Counter & Stats Engine
 local startTime = tick()
 local harvestedCount = 0
-local soldCount = 0
 
 task.spawn(function()
     while task.wait(1) do
@@ -138,17 +136,17 @@ task.spawn(function()
             end
 
             StatsLabel.Text = string.format(
-                " [ ENGINE STATUS ] : Active & Selling\n [ UPTIME ]        : %s\n [ SHECKLES ]      : %s\n\n [ CONFIG SYNC ]\n   • Auto Harvest  : Active (ON)\n   • Auto Sell     : Active (Dedicated)\n   • Walk Speed    : %s\n\n [ STATISTICS ]\n   • Harvested     : %d Crops\n   • Sold Actions  : %d Times",
+                " [ ENGINE STATUS ] : Universal Scan Active\n [ UPTIME ]        : %s\n [ SHECKLES ]      : %s\n\n [ CONFIG SYNC ]\n   • Auto Harvest  : Active (ON)\n   • Walk Speed    : %s\n\n [ STATISTICS ]\n   • Harvested     : %d Crops",
                 uptimeFormatted, sheckles, 
                 tostring(MiscCfg["Walk Speed"] or "Default"),
-                harvestedCount, soldCount
+                harvestedCount
             )
         end)
     end
 end)
 
 -- ==========================================================
--- MESIN UTAMA: AUTO-HARVEST & AUTO-SELL KHUSUS KIOS
+-- MESIN UTAMA: UNIVERSAL PROMPT SCANNER & TELEPORT
 -- ==========================================================
 task.spawn(function()
     pcall(function()
@@ -173,58 +171,29 @@ task.spawn(function()
     end
 end)
 
--- 1. Auto Harvest & Teleport Instan Murni di _Gardens
+-- Langsung pindai semua ProximityPrompt di seluruh map yang ada hubungannya dengan tanaman/panen
 task.spawn(function()
-    while task.wait(1) do
+    while task.wait(0.5) do
         pcall(function()
             if HarvestCfg["Auto Harvest"] then
-                local gardensFolder = Workspace:FindFirstChild("_Gardens")
                 local char = LocalPlayer.Character
-                if gardensFolder and char and char:FindFirstChild("HumanoidRootPart") then
+                if char and char:FindFirstChild("HumanoidRootPart") then
                     local hrp = char.HumanoidRootPart
-                    for _, plot in pairs(gardensFolder:GetChildren()) do
-                        for _, crop in pairs(plot:GetChildren()) do
-                            local targetPart = crop:IsA("Model") and crop.PrimaryPart or (crop:IsA("BasePart") and crop or nil)
-                            if targetPart then
-                                hrp.CFrame = targetPart.CFrame + Vector3.new(0, 4, 0)
+                    
+                    for _, obj in pairs(Workspace:GetDescendants()) do
+                        if obj:IsA("ProximityPrompt") then
+                            local parentName = string.lower(obj.Parent.Name)
+                            local actionText = string.lower(obj.ActionText)
+                            
+                            -- Filter agar hanya menyentuh prompt tanaman/panen (bukan menu sistem/pagar)
+                            if actionText:find("harvest") or actionText:find("pick") or actionText:find("collect") or parentName:find("crop") or parentName:find("plant") or parentName:find("plot") then
+                                local targetPart = obj.Parent:IsA("BasePart") and obj.Parent or (obj.Parent:IsA("Model") and obj.Parent.PrimaryPart or obj.Parent:FindFirstChildWhichIsA("BasePart"))
                                 
-                                for _, prompt in pairs(crop:GetDescendants()) do
-                                    if prompt:IsA("ProximityPrompt") then
-                                        fireproximityprompt(prompt)
-                                        harvestedCount = harvestedCount + 1
-                                    end
-                                end
-                                
-                                task.wait(0.3)
-                            end
-                        end
-                    end
-                end
-            end
-        end)
-    end
-end)
-
--- 2. Auto-Sell Khusus (Mendeteksi objek penjualan/kios/NPC kasir berdasarkan nama spesifik)
-task.spawn(function()
-    while task.wait(4) do
-        pcall(function()
-            local char = LocalPlayer.Character
-            if char and char:FindFirstChild("HumanoidRootPart") then
-                local hrp = char.HumanoidRootPart
-                
-                -- Cari objek di Workspace yang berkaitan dengan tempat jual/sell/shop
-                for _, obj in pairs(Workspace:GetDescendants()) do
-                    if obj:IsA("Model") or obj:IsA("BasePart") then
-                        local nameLower = string.lower(obj.Name)
-                        if nameLower:find("sell") or nameLower:find("shop") or nameLower:find("cashier") or nameLower:find("market") then
-                            -- Jika ada prompt di dalam objek penjualan tersebut
-                            for _, prompt in pairs(obj:GetDescendants()) do
-                                if prompt:IsA("ProximityPrompt") then
-                                    if (prompt.Parent.Position - hrp.Position).Magnitude < 40 then
-                                        fireproximityprompt(prompt)
-                                        soldCount = soldCount + 1
-                                    end
+                                if targetPart then
+                                    hrp.CFrame = targetPart.CFrame + Vector3.new(0, 3, 0)
+                                    fireproximityprompt(obj)
+                                    harvestedCount = harvestedCount + 1
+                                    task.wait(0.2)
                                 end
                             end
                         end
@@ -235,4 +204,4 @@ task.spawn(function()
     end
 end)
 
-print("[DonnHub] Auto-Farm & Dedicated Auto-Sell Active!")
+print("[DonnHub] Universal Crop Scanner Berhasil Dimuat!")

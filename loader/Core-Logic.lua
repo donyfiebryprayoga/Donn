@@ -1,4 +1,4 @@
--- File: loader/Core-Logic.lua (GAG2 Fully Synchronized & Config-Matched Engine)
+-- File: loader/Core-Logic.lua (GAG2 Final Fixed Networking Engine)
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
@@ -36,30 +36,21 @@ local rareCounters = {
 
 local lastPlantedName = "None"
 
---// 1. Delta File Logging System
-local function writeDebugLog(fileName, message)
-	pcall(function()
-		if DebugCfg["Log To File"] and writefile and appendfile then
-			local folderName = "GAG_Logs"
-			if makefolder and not isfolder(folderName) then
-				makefolder(folderName)
-			end
-			local filePath = folderName .. "/" .. fileName .. ".txt"
-			local timestamp = os.date("%Y-%m-%d %H:%M:%S")
-			local formattedMessage = string.format("[%s] %s\n", timestamp, message)
-			if not isfile(filePath) then
-				writefile(filePath, formattedMessage)
-			else
-				appendfile(filePath, formattedMessage)
-			end
-		end
-	end)
-end
+print("[DonnHub] Initializing GAG2 Engine with ClientModules Routing...")
 
---// 2. Networking Hook (ByteNet Packet System - GAG2 Robust Routing)
-local Net
+--// 1. Fixed Networking Hook (Mengarah ke ClientModules sesuai struktur game)
+local Net = nil
 pcall(function()
-	Net = require(ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("Networking"))
+	local cm = ReplicatedStorage:WaitForChild("ClientModules", 5)
+	if cm then
+		Net = require(cm:WaitForChild("Networking", 5))
+	else
+		-- Fallback ke SharedModules jika diperlukan
+		local sm = ReplicatedStorage:WaitForChild("SharedModules", 3)
+		if sm then
+			Net = require(sm:WaitForChild("Networking", 3))
+		end
+	end
 end)
 
 local function fire(category, action, ...)
@@ -79,6 +70,7 @@ local function fire(category, action, ...)
 end
 
 local function invoke(path, ...)
+	if not Net then return end
 	local n
 	if type(path) == "table" then
 		n = Net
@@ -104,7 +96,7 @@ local function invoke(path, ...)
 	return nil
 end
 
---// 3. Helper Functions
+--// 2. Helper Functions
 local function getCharacter()
 	local char = LocalPlayer.Character
 	if char then
@@ -270,16 +262,20 @@ local function getActiveWeather()
 	return currentWeather
 end
 
---// 4. Custom GUI & Clean Single Instance Initialization
+--// 3. Custom GUI Setup
+local parentUI = CoreGui
+pcall(function()
+	if gethui then parentUI = gethui()
+	else parentUI = LocalPlayer:WaitForChild("PlayerGui") end
+end)
+
 for _, guiName in ipairs({"DonnHubDashboard", "GAGHubGui", "DonnHubGui"}) do
-	if CoreGui:FindFirstChild(guiName) then
-		CoreGui[guiName]:Destroy()
-	end
+	if parentUI:FindFirstChild(guiName) then parentUI[guiName]:Destroy() end
 end
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "DonnHubDashboard"
-ScreenGui.Parent = CoreGui
+ScreenGui.Parent = parentUI
 ScreenGui.IgnoreGuiInset = true
 
 local MainFrame = Instance.new("Frame")
@@ -305,7 +301,7 @@ ContainerStroke.Color = Color3.fromRGB(0, 255, 130)
 ContainerStroke.Thickness = 1.5
 ContainerStroke.Parent = Container
 
--- Kolom Kiri (Purchased Log)
+-- Kolom Kiri
 local LeftCol = Instance.new("ScrollingFrame")
 LeftCol.Size = UDim2.new(0, 175, 1, -85)
 LeftCol.Position = UDim2.new(0, 15, 0, 15)
@@ -332,7 +328,7 @@ LeftText.ZIndex = 4
 LeftText.Text = "[PURCHASED LOG]\n"
 LeftText.Parent = LeftCol
 
--- Kolom Tengah (Farming Stats)
+-- Kolom Tengah
 local CenterCol = Instance.new("Frame")
 CenterCol.Size = UDim2.new(0, 390, 1, -85)
 CenterCol.Position = UDim2.new(0, 195, 0, 15)
@@ -360,10 +356,10 @@ StatsContent.Font = Enum.Font.GothamBold
 StatsContent.TextXAlignment = Enum.TextXAlignment.Center
 StatsContent.TextYAlignment = Enum.TextYAlignment.Top
 StatsContent.ZIndex = 4
-StatsContent.Text = "Uptime 00:00:00\n\nLoading Config Rules...\nPlants: 0 / 0\nHarvested 0\nWeather: Sunny"
+StatsContent.Text = "Uptime 00:00:00\n\nEngine Active...\nPlants: 0 / 0\nHarvested 0\nWeather: Sunny"
 StatsContent.Parent = CenterCol
 
--- Sub Status Bar di Bawah Harvest
+-- Sub Status Bar
 local SubStatusBar = Instance.new("Frame")
 SubStatusBar.Size = UDim2.new(1, -20, 0, 26)
 SubStatusBar.Position = UDim2.new(0, 10, 0, 150)
@@ -387,10 +383,10 @@ SubStatusText.Font = Enum.Font.GothamBold
 SubStatusText.TextXAlignment = Enum.TextXAlignment.Center
 SubStatusText.TextYAlignment = Enum.TextYAlignment.Center
 SubStatusText.ZIndex = 6
-SubStatusText.Text = "Status: Initializing Engine..."
+SubStatusText.Text = "Status: Running Smoothly"
 SubStatusText.Parent = SubStatusBar
 
--- Kolom Kanan (Shovel / Rare Seed Log)
+-- Kolom Kanan
 local RightCol = Instance.new("ScrollingFrame")
 RightCol.Size = UDim2.new(0, 175, 1, -85)
 RightCol.Position = UDim2.new(1, -190, 0, 15)
@@ -462,10 +458,6 @@ ConsoleButton.Text = "CONSOLE: ON"
 ConsoleButton.ZIndex = 5
 ConsoleButton.Parent = BottomBar
 Instance.new("UICorner", ConsoleButton).CornerRadius = UDim.new(0, 5)
-local ConsoleStroke = Instance.new("UIStroke")
-ConsoleStroke.Color = Color3.fromRGB(0, 255, 130)
-ConsoleStroke.Transparency = 0.5
-ConsoleStroke.Parent = ConsoleButton
 
 local ToggleButton = Instance.new("TextButton")
 ToggleButton.Size = UDim2.new(0, 130, 0, 22)
@@ -478,17 +470,11 @@ ToggleButton.Text = "🌱 HIDE GUI"
 ToggleButton.ZIndex = 5
 ToggleButton.Parent = BottomBar
 Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 6)
-local ToggleStroke = Instance.new("UIStroke")
-ToggleStroke.Color = Color3.fromRGB(0, 255, 150)
-ToggleStroke.Thickness = 1.2
-ToggleStroke.Parent = ToggleButton
 
 local purchasedLogs = {}
 local plantShovelLogs = {}
-local currentStatus = "Starting Engine"
 
 local function updateTopStatus(text)
-	currentStatus = text
 	SubStatusText.Text = "Status: " .. text
 end
 
@@ -509,7 +495,6 @@ local function pushPurchasedLog(msg)
 	table.insert(purchasedLogs, 1, string.format("[%s] %s", timestamp, msg))
 	if #purchasedLogs > 30 then table.remove(purchasedLogs) end
 	LeftText.Text = "[PURCHASED LOG]\n" .. table.concat(purchasedLogs, "\n")
-	writeDebugLog("GAG_Purchased_Log", msg)
 end
 
 local function pushPlantShovelLog(msg)
@@ -518,7 +503,6 @@ local function pushPlantShovelLog(msg)
 	table.insert(plantShovelLogs, 1, string.format("[%s] %s", timestamp, msg))
 	if #plantShovelLogs > 30 then table.remove(plantShovelLogs) end
 	RightText.Text = "[PLANT / RARE SEED]\n" .. table.concat(plantShovelLogs, "\n")
-	writeDebugLog("GAG_Plant_Shovel_Log", msg)
 end
 
 ToggleButton.MouseButton1Click:Connect(function()
@@ -545,15 +529,12 @@ ConsoleButton.MouseButton1Click:Connect(function()
 	end
 end)
 
---// 5. Config Enforcement & Safe Execution Helpers
 local function isSeedAllowed(seedName, toolObj)
 	if not seedName then return false end
-	
 	if toolObj then
 		local isGold = toolObj:GetAttribute("Gold") or false
 		local isRainbow = toolObj:GetAttribute("Rainbow") or false
 		local isMega = toolObj:GetAttribute("Mega") or false
-		
 		if EventSeedCfg["Only Gold"] and not isGold then return false end
 		if EventSeedCfg["Only Rainbow"] and not isRainbow then return false end
 		if EventSeedCfg["Only Mega"] and not isMega then return false end
@@ -561,27 +542,21 @@ local function isSeedAllowed(seedName, toolObj)
 
 	local dontPlant = PlantCfg["Don't Plant"] or {}
 	for _, dp in ipairs(dontPlant) do
-		if string.lower(tostring(seedName)) == string.lower(tostring(dp)) then
-			return false
-		end
+		if string.lower(tostring(seedName)) == string.lower(tostring(dp)) then return false end
 	end
 
 	local onlyPlant = PlantCfg["Only Plant"] or {}
 	if type(onlyPlant) == "table" and #onlyPlant > 0 then
 		local found = false
 		for _, op in ipairs(onlyPlant) do
-			if string.lower(tostring(seedName)) == string.lower(tostring(op)) then
-				found = true
-				break
-			end
+			if string.lower(tostring(seedName)) == string.lower(tostring(op)) then found = true break end
 		end
 		if not found then return false end
 	end
-
 	return true
 end
 
---// 6. Automation Loops Engine
+--// 4. Main Automation Loops
 local startTime = tick()
 local initialSheckles = 0
 local currentShecklesNum = 0
@@ -594,7 +569,7 @@ pcall(function()
 	end
 end)
 
--- Performance & Misc Integration
+-- Performance Loop
 task.spawn(function()
 	while task.wait(3) do
 		pcall(function()
@@ -613,14 +588,14 @@ task.spawn(function()
 	end
 end)
 
--- Auto Positioning Loop
+-- Position Loop
 task.spawn(function()
 	while task.wait(3) do
 		moveToGarden()
 	end
 end)
 
--- UI Status Refresh Loop
+-- Status UI Loop
 task.spawn(function()
 	while task.wait(1) do
 		pcall(function()
@@ -653,17 +628,16 @@ task.spawn(function()
 				"Uptime %s\n\n%s Sheckles\n+%s\n\nPlants: %d / %s\nHarvested %.1fK\n\nWeather: %s",
 				uptimeFormatted, shecklesStr, rateStr, currentPlantsTotal, plantLimitStr, harvestedCount / 1000, liveWeather
 			)
-
 			updateCompactInfo(currentPlantsTotal)
 		end)
 	end
 end)
 
--- 1. Harvest & Config-Matched Selling Loop (Sell At & Sell Every)
+-- Harvest & Sell Loop
 task.spawn(function()
 	while task.wait(1.0) do
 		pcall(function()
-			if HarvestCfg["Auto Harvest"] ~= false and Net then
+			if HarvestCfg["Auto Harvest"] ~= false then
 				local list = scanCollectibleDetailed()
 				local dontHarvestList = HarvestCfg["Don't Harvest"] or {}
 				
@@ -679,69 +653,61 @@ task.spawn(function()
 							local collectRes = fire("Garden", "CollectFruit", e.plantId, e.fruitId)
 							
 							if collectRes == "Full" or collectRes == false or #list >= (HarvestCfg["Sell At"] or 75) then
-								updateTopStatus("Inventory Full / Sell At Reached! Selling...")
+								updateTopStatus("Selling Inventory...")
 								fire("NPCS", "SellAll")
 								invoke({ "NPCS", "SellAll" })
-								pushPurchasedLog("sold inventory (Sell Trigger)")
+								pushPurchasedLog("sold inventory")
 							end
-							
 							harvestedCount = harvestedCount + 1
 							task.wait(0.04)
 						end
 					end
 				else
-					updateTopStatus("Idle / Running")
+					updateTopStatus("Running")
 				end
 			end
 		end)
 	end
 end)
 
--- 2. Timed Sell Loop (Sell Every)
+-- Timed Sell Loop
 task.spawn(function()
-	local sellInterval = HarvestCfg["Sell Every"] or 20
-	if sellInterval > 0 then
-		while task.wait(sellInterval) do
-			pcall(function()
-				if HarvestCfg["Auto Harvest"] ~= false and Net then
-					updateTopStatus("Selling Fruit / Inventory (Interval)...")
-					fire("NPCS", "SellAll")
-					invoke({ "NPCS", "SellAll" })
-					pushPurchasedLog("sold inventory (Sell Every)")
-				end
-			end)
-		end
+	while task.wait(HarvestCfg["Sell Every"] or 20) do
+		pcall(function()
+			if HarvestCfg["Auto Harvest"] ~= false then
+				updateTopStatus("Selling (Interval)...")
+				fire("NPCS", "SellAll")
+				invoke({ "NPCS", "SellAll" })
+				pushPurchasedLog("sold inventory (Interval)")
+			end
+		end)
 	end
 end)
 
--- 3. Buy Seeds & Keep Seeds Sniper Loop
+-- Seed Purchasing Loop
 task.spawn(function()
 	while task.wait(3) do
 		pcall(function()
-			if Net then
-				local seedsToBuyMap = PlantCfg["Buy Seeds"] or {}
-				local keepSeedsMap = PlantCfg["Keep Seeds"] or {}
-				
-				local combinedBuyList = {}
-				for k, v in pairs(seedsToBuyMap) do combinedBuyList[k] = v end
-				for k, v in pairs(keepSeedsMap) do combinedBuyList[k] = v end
+			local seedsToBuyMap = PlantCfg["Buy Seeds"] or {}
+			local keepSeedsMap = PlantCfg["Keep Seeds"] or {}
+			local combinedBuyList = {}
+			for k, v in pairs(seedsToBuyMap) do combinedBuyList[k] = v end
+			for k, v in pairs(keepSeedsMap) do combinedBuyList[k] = v end
 
-				for seedName, maxTarget in pairs(combinedBuyList) do
-					if type(seedName) == "string" then
-						local dontBuyList = PlantCfg["Don't Buy"] or {}
-						local isBlocked = false
-						for _, db in ipairs(dontBuyList) do
-							if string.lower(seedName) == string.lower(db) then isBlocked = true break end
-						end
+			for seedName, _ in pairs(combinedBuyList) do
+				if type(seedName) == "string" then
+					local dontBuyList = PlantCfg["Don't Buy"] or {}
+					local isBlocked = false
+					for _, db in ipairs(dontBuyList) do
+						if string.lower(seedName) == string.lower(db) then isBlocked = true break end
+					end
 
-						if not isBlocked then
-							updateTopStatus("Buying Seed: " .. tostring(seedName))
-							local res = invoke({ "SeedShop", "PurchaseSeed" }, seedName) or fire("SeedShop", "PurchaseSeed", seedName)
-							if res ~= false and res ~= nil then
-								pushPurchasedLog(string.format("beli benih %s", seedName))
-							end
-							task.wait(0.15)
-						end
+					if not isBlocked then
+						updateTopStatus("Buying Seed: " .. tostring(seedName))
+						invoke({ "SeedShop", "PurchaseSeed" }, seedName)
+						fire("SeedShop", "PurchaseSeed", seedName)
+						pushPurchasedLog("beli benih " .. seedName)
+						task.wait(0.2)
 					end
 				end
 			end
@@ -749,18 +715,17 @@ task.spawn(function()
 	end
 end)
 
--- 4. Buy Gear Loop
-local gearBuyList = GearCfg["Buy Gear"] or {}
+-- Gear Purchasing Loop
 task.spawn(function()
 	while task.wait(10) do
 		pcall(function()
-			if GearCfg["Auto Buy"] and Net then
+			if GearCfg["Auto Buy"] then
+				local gearBuyList = GearCfg["Buy Gear"] or {}
 				for _, gearName in ipairs(gearBuyList) do
 					updateTopStatus("Buying Gear: " .. tostring(gearName))
-					local res = invoke({ "GearShop", "PurchaseGear" }, gearName) or fire("GearShop", "PurchaseGear", gearName)
-					if res ~= false and res ~= nil then
-						pushPurchasedLog("beli gear " .. tostring(gearName))
-					end
+					invoke({ "GearShop", "PurchaseGear" }, gearName)
+					fire("GearShop", "PurchaseGear", gearName)
+					pushPurchasedLog("beli gear " .. gearName)
 					task.wait(0.5)
 				end
 			end
@@ -768,11 +733,11 @@ task.spawn(function()
 	end
 end)
 
--- 5. Plant & Shovel Loop (Protected Eclipse Bloom & Tier Tinggi)
+-- Plant & Shovel Loop (Protected Eclipse Bloom & Tier Tinggi)
 task.spawn(function()
 	while task.wait(1.2) do
 		pcall(function()
-			if PlantCfg["Auto Plant"] ~= false and Net then
+			if PlantCfg["Auto Plant"] ~= false then
 				local plantLimit = PlantCfg["Plant Limit"] or 69
 				local plants = myPlantModels()
 				
@@ -801,22 +766,14 @@ task.spawn(function()
 							end
 
 							local plantTier = string.lower(tostring(p:GetAttribute("Tier") or p:GetAttribute("Rarity") or ""))
-							
 							if plantTier == "mythic" or plantTier == "super" or plantTier == "secret" or plantTier == "legendary" then
 								safe = true
 							end
 
 							if not safe then
 								updateTopStatus("Replacing over limit: " .. tostring(pName))
-								local successShovel = pcall(function()
-									fire("Garden", "ShovelPlant", p:GetAttribute("PlantId"))
-								end)
-								
-								if successShovel then
-									pushPlantShovelLog(string.format("[REPLACE] Shovel %s", tostring(pName)))
-								else
-									pushPlantShovelLog(string.format("[GAGAL] Shovel %s", tostring(pName)))
-								end
+								fire("Garden", "ShovelPlant", p:GetAttribute("PlantId"))
+								pushPlantShovelLog("[REPLACE] Shovel " .. tostring(pName))
 								task.wait(0.3)
 								break
 							end
@@ -832,19 +789,9 @@ task.spawn(function()
 						local isMega = tool:GetAttribute("Mega") or false
 						
 						local variantTag = ""
-						if isGold then
-							variantTag = "[GOLD] "
-							rareCounters.Gold = rareCounters.Gold + 1
-							updateRareCounterDisplay()
-						elseif isRainbow then
-							variantTag = "[RAINBOW] "
-							rareCounters.Rainbow = rareCounters.Rainbow + 1
-							updateRareCounterDisplay()
-						elseif isMega then
-							variantTag = "[MEGA] "
-							rareCounters.Mega = rareCounters.Mega + 1
-							updateRareCounterDisplay()
-						end
+						if isGold then variantTag = "[GOLD] "
+						elseif isRainbow then variantTag = "[RAINBOW] "
+						elseif isMega then variantTag = "[MEGA] " end
 
 						lastPlantedName = tostring(seedName)
 						updateTopStatus("Planting: " .. variantTag .. seedName)
@@ -853,16 +800,8 @@ task.spawn(function()
 						if pos and hum then
 							if tool.Parent ~= LocalPlayer.Character then hum:EquipTool(tool) end
 							task.wait(0.05)
-							
-							local successPlant = pcall(function()
-								fire("Plant", "PlantSeed", pos, seedName, tool)
-							end)
-							
-							if successPlant then
-								pushPlantShovelLog(string.format("[SUKSES] Tanam %s%s", variantTag, seedName))
-							else
-								pushPlantShovelLog(string.format("[GAGAL] Tanam %s%s", variantTag, seedName))
-							end
+							fire("Plant", "PlantSeed", pos, seedName, tool)
+							pushPlantShovelLog("[SUKSES] Tanam " .. variantTag .. seedName)
 							task.wait(0.3)
 						end
 					end
@@ -872,41 +811,25 @@ task.spawn(function()
 	end
 end)
 
--- 6. Open Eggs Loop
+-- Egg & Auction Loop
 task.spawn(function()
 	while task.wait(4) do
 		pcall(function()
-			if EggsCfg["Auto Open"] and Net then
+			if EggsCfg["Auto Open"] then
 				local openList = EggsCfg["Open"] or {"all"}
 				for _, eggName in ipairs(openList) do
 					if hasItemInInventory(eggName) or eggName == "all" then
-						updateTopStatus("Opening Egg...")
-						local eggRes = invoke({ "Egg", "OpenEgg" }, eggName) or fire("Egg", "OpenEgg", eggName)
-						if eggRes ~= false and eggRes ~= nil then
-							pushPurchasedLog("buka egg")
-						end
+						invoke({ "Egg", "OpenEgg" }, eggName)
+						fire("Egg", "OpenEgg", eggName)
 					end
 					task.wait(0.5)
 				end
 			end
-		end)
-	end
-end)
-
--- 7. Auctioneer Auto Buy Loop
-task.spawn(function()
-	while task.wait(AuctionCfg["Check Every"] or 0.2) do
-		pcall(function()
-			if AuctionCfg["Auto Buy"] and Net then
+			if AuctionCfg["Auto Buy"] then
 				local buyItems = AuctionCfg["Buy"] or {}
 				for itemName, maxPrice in pairs(buyItems) do
-					updateTopStatus("Checking Auction: " .. tostring(itemName))
-					local ok, aucRes = pcall(function()
-						return fire("Auctioneer", "PurchaseLot", itemName, maxPrice) or invoke({ "Auctioneer", "PurchaseLot" }, itemName, maxPrice)
-					end)
-					if ok and aucRes ~= false and aucRes ~= nil then
-						pushPurchasedLog("beli lelang " .. tostring(itemName))
-					end
+					fire("Auctioneer", "PurchaseLot", itemName, maxPrice)
+					invoke({ "Auctioneer", "PurchaseLot" }, itemName, maxPrice)
 					task.wait(0.2)
 				end
 			end
@@ -914,16 +837,15 @@ task.spawn(function()
 	end
 end)
 
--- 8. Mailbox Auto Claim & Guild Auto Accept
+-- Mailbox & Anti-AFK
 task.spawn(function()
 	while task.wait(30) do
 		pcall(function()
-			if MailCfg["Auto Claim"] and Net then
-				updateTopStatus("Claiming Mailbox...")
+			if MailCfg["Auto Claim"] then
 				fire("Mailbox", "ClaimAll")
 				invoke({ "Mailbox", "ClaimAll" })
 			end
-			if GuildCfg["Auto Accept Invite"] and Net then
+			if GuildCfg["Auto Accept Invite"] then
 				fire("Guild", "AcceptInvite")
 				invoke({ "Guild", "AcceptInvite" })
 			end
@@ -931,7 +853,6 @@ task.spawn(function()
 	end
 end)
 
--- 9. Anti-AFK Engine
 task.spawn(function()
 	local ok, idle = pcall(function() return LocalPlayer.Idled end)
 	if ok and idle then
@@ -941,4 +862,4 @@ task.spawn(function()
 	end
 end)
 
-print("[DonnHub] Script successfully synchronized with complete config parameters and stable networking!")
+print("[DonnHub] Engine successfully loaded with ClientModules path!")

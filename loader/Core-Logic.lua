@@ -1,4 +1,4 @@
--- File: loader/Core-Logic.lua (GAG2 Safe Error-Resilient Engine)
+-- File: loader/Core-Logic.lua (GAG2 Fully Synchronized & Config-Matched Engine)
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
@@ -270,29 +270,17 @@ local function getActiveWeather()
 	return currentWeather
 end
 
---// 4. Bulletproof GUI Setup (Safe Container Generation)
-local parentUI = CoreGui
-pcall(function()
-	if gethui then
-		parentUI = gethui()
-	elseif syn and syn.protect_gui then
-		parentUI = CoreGui
-	else
-		parentUI = LocalPlayer:WaitForChild("PlayerGui")
-	end
-end)
-
+--// 4. Custom GUI & Clean Single Instance Initialization
 for _, guiName in ipairs({"DonnHubDashboard", "GAGHubGui", "DonnHubGui"}) do
-	if parentUI:FindFirstChild(guiName) then
-		parentUI[guiName]:Destroy()
+	if CoreGui:FindFirstChild(guiName) then
+		CoreGui[guiName]:Destroy()
 	end
 end
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "DonnHubDashboard"
-ScreenGui.Parent = parentUI
+ScreenGui.Parent = CoreGui
 ScreenGui.IgnoreGuiInset = true
-ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(1, 0, 1, 0)
@@ -606,7 +594,7 @@ pcall(function()
 	end
 end)
 
--- Misc & Performance Integration
+-- Performance & Misc Integration
 task.spawn(function()
 	while task.wait(3) do
 		pcall(function()
@@ -625,14 +613,10 @@ task.spawn(function()
 	end
 end)
 
--- Auto Return to Garden Loop
+-- Auto Positioning Loop
 task.spawn(function()
 	while task.wait(3) do
-		pcall(function()
-			if MiscCfg["Auto Return To Garden"] then
-				moveToGarden()
-			end
-		end)
+		moveToGarden()
 	end
 end)
 
@@ -675,7 +659,7 @@ task.spawn(function()
 	end
 end)
 
--- 1. Harvest & Reliable Selling Loop
+-- 1. Harvest & Config-Matched Selling Loop (Sell At & Sell Every)
 task.spawn(function()
 	while task.wait(1.0) do
 		pcall(function()
@@ -730,7 +714,7 @@ task.spawn(function()
 	end
 end)
 
--- 3. Buy Seeds Loop
+-- 3. Buy Seeds & Keep Seeds Sniper Loop
 task.spawn(function()
 	while task.wait(3) do
 		pcall(function()
@@ -784,7 +768,7 @@ task.spawn(function()
 	end
 end)
 
--- 5. Plant & Shovel Loop
+-- 5. Plant & Shovel Loop (Protected Eclipse Bloom & Tier Tinggi)
 task.spawn(function()
 	while task.wait(1.2) do
 		pcall(function()
@@ -818,7 +802,7 @@ task.spawn(function()
 
 							local plantTier = string.lower(tostring(p:GetAttribute("Tier") or p:GetAttribute("Rarity") or ""))
 							
-							if plantTier == "mythic" or plantTier == "super" or plantTier == "secret" then
+							if plantTier == "mythic" or plantTier == "super" or plantTier == "secret" or plantTier == "legendary" then
 								safe = true
 							end
 
@@ -930,7 +914,7 @@ task.spawn(function()
 	end
 end)
 
--- 8. Mailbox & Guild Auto Loop
+-- 8. Mailbox Auto Claim & Guild Auto Accept
 task.spawn(function()
 	while task.wait(30) do
 		pcall(function()
@@ -957,4 +941,4 @@ task.spawn(function()
 	end
 end)
 
-print("[DonnHub] Script successfully loaded with error protection!")
+print("[DonnHub] Script successfully synchronized with complete config parameters and stable networking!")

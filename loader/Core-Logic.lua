@@ -1,11 +1,12 @@
--- File: loader/Core-Logic.lua (GAG2 Safe Delayed Bootstrapper)
+-- File: loader/Core-Logic.lua (GAG2 Full GUI & Stable Config-Matched Engine)
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
 local VirtualUser       = game:GetService("VirtualUser")
 local Lighting          = game:GetService("Lighting")
 local Workspace         = game:GetService("Workspace")
-local StarterGui        = game:GetService("StarterGui")
+local CoreGui           = game:GetService("CoreGui")
+local TweenService      = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -26,6 +27,8 @@ local EggsCfg       = Config["Eggs"] or {}
 local PerfCfg       = Config["Performance"] or {}
 local DebugCfg      = Config["Debug"] or {}
 
+local purchasedLogs = {}
+local plantShovelLogs = {}
 local rareCounters = {
 	Gold = 0,
 	Rainbow = 0,
@@ -34,31 +37,32 @@ local rareCounters = {
 
 local lastPlantedName = "None"
 
-print("[DonnHub GAG2] Waiting for game loading to finish...")
+print("[DonnHub] Initializing GAG2 Engine with Full GUI & Safe Networking...")
 
---// 1. Safe Delayed Networking Hook (Menunggu ClientModules benar-benar ada)
+--// 1. Safe Networking Hook with Timeout (Anti Infinite Yield)
 local Net = nil
 task.spawn(function()
-	local cm = nil
-	while not cm do
-		cm = ReplicatedStorage:FindFirstChild("ClientModules")
-		if not cm then
+	local attempts = 0
+	while not Net and attempts < 30 do
+		pcall(function()
+			local cm = ReplicatedStorage:WaitForChild("ClientModules", 3)
+			if cm then
+				local netMod = cm:WaitForChild("Networking", 3)
+				if netMod then
+					Net = require(netMod)
+				end
+			end
+		end)
+		if not Net then
+			attempts = attempts + 1
 			task.wait(1)
 		end
 	end
-	
-	local netMod = nil
-	while not netMod do
-		netMod = cm:FindFirstChild("Networking")
-		if not netMod then
-			task.wait(1)
-		end
+	if Net then
+		print("[DonnHub] Networking module successfully connected!")
+	else
+		warn("[DonnHub] Warning: Networking module not found, running fallback mode.")
 	end
-	
-	pcall(function()
-		Net = require(netMod)
-	end)
-	print("[DonnHub GAG2] Networking successfully loaded and synchronized!")
 end)
 
 local function fire(category, action, ...)
@@ -143,7 +147,13 @@ local function moveToGarden()
 			if targetPart then
 				local destPos = targetPart.Position + Vector3.new(0, 4, 0)
 				if (hrp.Position - destPos).Magnitude > 25 then
-					hrp.CFrame = CFrame.new(destPos)
+					if MiscCfg["Fast Travel"] then
+						local tweenInfo = TweenInfo.new((hrp.Position - destPos).Magnitude / (MiscCfg["Slide Speed"] or 30), Enum.EasingStyle.Linear)
+						local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(destPos)})
+						tween:Play()
+					else
+						hrp.CFrame = CFrame.new(destPos)
+					end
 				end
 			end
 		end
@@ -243,6 +253,291 @@ local function myPlantModels()
 	return out
 end
 
+local function getActiveWeather()
+	local currentWeather = "Sunny"
+	pcall(function()
+		if Workspace:GetAttribute("Weather") then
+			currentWeather = tostring(Workspace:GetAttribute("Weather"))
+		elseif ReplicatedStorage:FindFirstChild("WeatherData") then
+			local wData = ReplicatedStorage.WeatherData
+			if wData:IsA("StringValue") then currentWeather = wData.Value
+			elseif wData:GetAttribute("Current") then currentWeather = tostring(wData:GetAttribute("Current")) end
+		else
+			local clockTime = Lighting.ClockTime
+			if clockTime < 6 or clockTime > 18 then
+				currentWeather = "Night"
+			elseif Lighting:FindFirstChild("Atmosphere") and Lighting.Atmosphere.Density > 0.4 then
+				currentWeather = "Cloudy"
+			end
+		end
+	end)
+	return currentWeather
+end
+
+--// 3. Safe GUI Builder (Dashboard Lengkap Kembali)
+local parentUI = CoreGui
+pcall(function()
+	if gethui then parentUI = gethui()
+	else parentUI = LocalPlayer:WaitForChild("PlayerGui") end
+end)
+
+for _, guiName in ipairs({"DonnHubDashboard", "GAGHubGui", "DonnHubGui"}) do
+	if parentUI:FindFirstChild(guiName) then parentUI[guiName]:Destroy() end
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "DonnHubDashboard"
+ScreenGui.Parent = parentUI
+ScreenGui.IgnoreGuiInset = true
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(1, 0, 1, 0)
+MainFrame.Position = UDim2.new(0, 0, 0, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(10, 12, 14)
+MainFrame.BackgroundTransparency = 0.15
+MainFrame.BorderSizePixel = 0
+MainFrame.ZIndex = 2
+MainFrame.Parent = ScreenGui
+
+local Container = Instance.new("Frame")
+Container.Size = UDim2.new(0, 780, 0, 480)
+Container.Position = UDim2.new(0.5, -390, 0.5, -240)
+Container.BackgroundColor3 = Color3.fromRGB(14, 18, 16)
+Container.BackgroundTransparency = 0.05
+Container.BorderSizePixel = 0
+Container.ZIndex = 3
+Container.Parent = MainFrame
+Instance.new("UICorner", Container).CornerRadius = UDim.new(0, 12)
+local ContainerStroke = Instance.new("UIStroke")
+ContainerStroke.Color = Color3.fromRGB(0, 255, 130)
+ContainerStroke.Thickness = 1.5
+ContainerStroke.Parent = Container
+
+-- Kolom Kiri
+local LeftCol = Instance.new("ScrollingFrame")
+LeftCol.Size = UDim2.new(0, 175, 1, -85)
+LeftCol.Position = UDim2.new(0, 15, 0, 15)
+LeftCol.BackgroundColor3 = Color3.fromRGB(8, 10, 12)
+LeftCol.BackgroundTransparency = 0.4
+LeftCol.BorderSizePixel = 0
+LeftCol.ScrollBarThickness = 2
+LeftCol.CanvasSize = UDim2.new(0, 0, 5, 0)
+LeftCol.ZIndex = 4
+LeftCol.Parent = Container
+Instance.new("UICorner", LeftCol).CornerRadius = UDim.new(0, 8)
+
+local LeftText = Instance.new("TextLabel")
+LeftText.Size = UDim2.new(1, -8, 1, 0)
+LeftText.Position = UDim2.new(0, 4, 0, 4)
+LeftText.BackgroundTransparency = 1
+LeftText.TextColor3 = Color3.fromRGB(150, 170, 160)
+LeftText.TextSize = 10
+LeftText.Font = Enum.Font.Code
+LeftText.TextXAlignment = Enum.TextXAlignment.Left
+LeftText.TextYAlignment = Enum.TextYAlignment.Top
+LeftText.TextWrapped = true
+LeftText.ZIndex = 4
+LeftText.Text = "[PURCHASED LOG]\n"
+LeftText.Parent = LeftCol
+
+-- Kolom Tengah
+local CenterCol = Instance.new("Frame")
+CenterCol.Size = UDim2.new(0, 390, 1, -85)
+CenterCol.Position = UDim2.new(0, 195, 0, 15)
+CenterCol.BackgroundTransparency = 1
+CenterCol.ZIndex = 4
+CenterCol.Parent = Container
+
+local TitleCenter = Instance.new("TextLabel")
+TitleCenter.Size = UDim2.new(1, 0, 0, 25)
+TitleCenter.BackgroundTransparency = 1
+TitleCenter.Text = "FARMING & FULL CONFIG ENGINE"
+TitleCenter.TextColor3 = Color3.fromRGB(0, 255, 130)
+TitleCenter.TextSize = 16
+TitleCenter.Font = Enum.Font.GothamBold
+TitleCenter.ZIndex = 4
+TitleCenter.Parent = CenterCol
+
+local StatsContent = Instance.new("TextLabel")
+StatsContent.Size = UDim2.new(1, 0, 1, -25)
+StatsContent.Position = UDim2.new(0, 0, 0, 25)
+StatsContent.BackgroundTransparency = 1
+StatsContent.TextColor3 = Color3.fromRGB(230, 245, 240)
+StatsContent.TextSize = 13
+StatsContent.Font = Enum.Font.GothamBold
+StatsContent.TextXAlignment = Enum.TextXAlignment.Center
+StatsContent.TextYAlignment = Enum.TextYAlignment.Top
+StatsContent.ZIndex = 4
+StatsContent.Text = "Uptime 00:00:00\n\nEngine Active...\nPlants: 0 / 0\nHarvested 0\nWeather: Sunny"
+StatsContent.Parent = CenterCol
+
+-- Sub Status Bar
+local SubStatusBar = Instance.new("Frame")
+SubStatusBar.Size = UDim2.new(1, -20, 0, 26)
+SubStatusBar.Position = UDim2.new(0, 10, 0, 150)
+SubStatusBar.BackgroundColor3 = Color3.fromRGB(22, 35, 28)
+SubStatusBar.BackgroundTransparency = 0.1
+SubStatusBar.BorderSizePixel = 0
+SubStatusBar.ZIndex = 5
+SubStatusBar.Parent = CenterCol
+Instance.new("UICorner", SubStatusBar).CornerRadius = UDim.new(0, 6)
+local SubStatusStroke = Instance.new("UIStroke")
+SubStatusStroke.Color = Color3.fromRGB(255, 200, 0)
+SubStatusStroke.Thickness = 1.2
+SubStatusStroke.Parent = SubStatusBar
+
+local SubStatusText = Instance.new("TextLabel")
+SubStatusText.Size = UDim2.new(1, 0, 1, 0)
+SubStatusText.BackgroundTransparency = 1
+SubStatusText.TextColor3 = Color3.fromRGB(255, 235, 100)
+SubStatusText.TextSize = 11
+SubStatusText.Font = Enum.Font.GothamBold
+SubStatusText.TextXAlignment = Enum.TextXAlignment.Center
+SubStatusText.TextYAlignment = Enum.TextYAlignment.Center
+SubStatusText.ZIndex = 6
+SubStatusText.Text = "Status: Running Smoothly"
+SubStatusText.Parent = SubStatusBar
+
+-- Kolom Kanan
+local RightCol = Instance.new("ScrollingFrame")
+RightCol.Size = UDim2.new(0, 175, 1, -85)
+RightCol.Position = UDim2.new(1, -190, 0, 15)
+RightCol.BackgroundColor3 = Color3.fromRGB(8, 10, 12)
+RightCol.BackgroundTransparency = 0.4
+RightCol.BorderSizePixel = 0
+RightCol.ScrollBarThickness = 2
+RightCol.CanvasSize = UDim2.new(0, 0, 5, 0)
+RightCol.ZIndex = 4
+RightCol.Parent = Container
+Instance.new("UICorner", RightCol).CornerRadius = UDim.new(0, 8)
+
+local RightText = Instance.new("TextLabel")
+RightText.Size = UDim2.new(1, -8, 1, 0)
+RightText.Position = UDim2.new(0, 4, 0, 4)
+RightText.BackgroundTransparency = 1
+RightText.TextColor3 = Color3.fromRGB(150, 170, 160)
+RightText.TextSize = 10
+RightText.Font = Enum.Font.Code
+RightText.TextXAlignment = Enum.TextXAlignment.Left
+RightText.TextYAlignment = Enum.TextYAlignment.Top
+RightText.TextWrapped = true
+RightText.ZIndex = 4
+RightText.Text = "[PLANT / RARE SEED]\n"
+RightText.Parent = RightCol
+
+-- Bottom Bar
+local BottomBar = Instance.new("Frame")
+BottomBar.Size = UDim2.new(1, -30, 0, 85)
+BottomBar.Position = UDim2.new(0, 15, 1, -90)
+BottomBar.BackgroundTransparency = 1
+BottomBar.ZIndex = 4
+BottomBar.Parent = Container
+
+local RareCounterLabel = Instance.new("TextLabel")
+RareCounterLabel.Size = UDim2.new(1, 0, 0, 18)
+RareCounterLabel.Position = UDim2.new(0, 0, 0, 0)
+RareCounterLabel.BackgroundTransparency = 1
+RareCounterLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+RareCounterLabel.TextSize = 11
+RareCounterLabel.Font = Enum.Font.GothamBold
+RareCounterLabel.TextXAlignment = Enum.TextXAlignment.Center
+RareCounterLabel.TextYAlignment = Enum.TextYAlignment.Center
+RareCounterLabel.ZIndex = 5
+RareCounterLabel.Text = "G 0 R 0 M 0"
+RareCounterLabel.Parent = BottomBar
+
+local CompactInfoLabel = Instance.new("TextLabel")
+CompactInfoLabel.Size = UDim2.new(1, 0, 0, 18)
+CompactInfoLabel.Position = UDim2.new(0, 0, 0, 18)
+CompactInfoLabel.BackgroundTransparency = 1
+CompactInfoLabel.TextColor3 = Color3.fromRGB(150, 230, 200)
+CompactInfoLabel.TextSize = 10
+CompactInfoLabel.Font = Enum.Font.Gotham
+CompactInfoLabel.TextXAlignment = Enum.TextXAlignment.Center
+CompactInfoLabel.TextYAlignment = Enum.TextYAlignment.Center
+CompactInfoLabel.ZIndex = 5
+CompactInfoLabel.Text = "Plant: 0 | Sell: 20s | Gear: None | Last: None"
+CompactInfoLabel.Parent = BottomBar
+
+local ConsoleButton = Instance.new("TextButton")
+ConsoleButton.Size = UDim2.new(0, 120, 0, 18)
+ConsoleButton.Position = UDim2.new(0.5, -60, 0, 38)
+ConsoleButton.BackgroundColor3 = Color3.fromRGB(22, 28, 25)
+ConsoleButton.TextColor3 = Color3.fromRGB(180, 220, 200)
+ConsoleButton.TextSize = 9
+ConsoleButton.Font = Enum.Font.GothamBold
+ConsoleButton.Text = "CONSOLE: ON"
+ConsoleButton.ZIndex = 5
+ConsoleButton.Parent = BottomBar
+Instance.new("UICorner", ConsoleButton).CornerRadius = UDim.new(0, 5)
+
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(0, 130, 0, 22)
+ToggleButton.Position = UDim2.new(0.5, -65, 0, 58)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(15, 22, 18)
+ToggleButton.TextColor3 = Color3.fromRGB(0, 255, 150)
+ToggleButton.TextSize = 11
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.Text = "🌱 HIDE GUI"
+ToggleButton.ZIndex = 5
+ToggleButton.Parent = BottomBar
+Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 6)
+
+local function updateTopStatus(text)
+	SubStatusText.Text = "Status: " .. text
+end
+
+local function updateRareCounterDisplay()
+	RareCounterLabel.Text = string.format("G %d R %d M %d", rareCounters.Gold, rareCounters.Rainbow, rareCounters.Mega)
+end
+
+local function updateCompactInfo(totalPlants)
+	local sellEvery = HarvestCfg["Sell Every"] or 20
+	local gearBuyList = GearCfg["Buy Gear"] or {}
+	local activeGear = (#gearBuyList > 0) and tostring(gearBuyList[1]) or "None"
+	CompactInfoLabel.Text = string.format("Plant: %d | Sell: %ds | Gear: %s | Last: %s", totalPlants, sellEvery, activeGear, lastPlantedName)
+end
+
+local function pushPurchasedLog(msg)
+	if ConsoleButton.Text ~= "CONSOLE: ON" then return end
+	local timestamp = os.date("%H:%M:%S")
+	table.insert(purchasedLogs, 1, string.format("[%s] %s", timestamp, msg))
+	if #purchasedLogs > 30 then table.remove(purchasedLogs) end
+	LeftText.Text = "[PURCHASED LOG]\n" .. table.concat(purchasedLogs, "\n")
+end
+
+local function pushPlantShovelLog(msg)
+	if ConsoleButton.Text ~= "CONSOLE: ON" then return end
+	local timestamp = os.date("%H:%M:%S")
+	table.insert(plantShovelLogs, 1, string.format("[%s] %s", timestamp, msg))
+	if #plantShovelLogs > 30 then table.remove(plantShovelLogs) end
+	RightText.Text = "[PLANT / RARE SEED]\n" .. table.concat(plantShovelLogs, "\n")
+end
+
+ToggleButton.MouseButton1Click:Connect(function()
+	if Container.Visible then
+		Container.Visible = false
+		MainFrame.BackgroundTransparency = 1
+		ToggleButton.Text = "🌱 OPEN GUI"
+	else
+		Container.Visible = true
+		MainFrame.BackgroundTransparency = 0.15
+		ToggleButton.Text = "🌱 HIDE GUI"
+	end
+end)
+
+ConsoleButton.MouseButton1Click:Connect(function()
+	if ConsoleButton.Text == "CONSOLE: ON" then
+		ConsoleButton.Text = "CONSOLE: OFF"
+		ConsoleButton.TextColor3 = Color3.fromRGB(120, 120, 120)
+		LeftText.Text = "[PURCHASED LOG]\n(Console Paused)"
+		RightText.Text = "[PLANT / RARE SEED]\n(Console Paused)"
+	else
+		ConsoleButton.Text = "CONSOLE: ON"
+		ConsoleButton.TextColor3 = Color3.fromRGB(180, 220, 200)
+	end
+end)
+
 local function isSeedAllowed(seedName, toolObj)
 	if not seedName then return false end
 	if toolObj then
@@ -270,7 +565,20 @@ local function isSeedAllowed(seedName, toolObj)
 	return true
 end
 
---// 3. Automation Loops
+--// 4. Main Automation Loops
+local startTime = tick()
+local initialSheckles = 0
+local currentShecklesNum = 0
+local harvestedCount = 0
+
+pcall(function()
+	if LocalPlayer:FindFirstChild("leaderstats") then
+		local cash = LocalPlayer.leaderstats:FindFirstChild("Sheckles") or LocalPlayer.leaderstats:FindFirstChild("Cash")
+		if cash then initialSheckles = tonumber(cash.Value) or 0 end
+	end
+end)
+
+-- Performance Loop
 task.spawn(function()
 	while task.wait(3) do
 		pcall(function()
@@ -289,9 +597,48 @@ task.spawn(function()
 	end
 end)
 
+-- Position Loop
 task.spawn(function()
 	while task.wait(3) do
 		moveToGarden()
+	end
+end)
+
+-- Status UI Loop
+task.spawn(function()
+	while task.wait(1) do
+		pcall(function()
+			local uptimeSeconds = math.floor(tick() - startTime)
+			local hours = math.floor(uptimeSeconds / 3600)
+			local minutes = math.floor((uptimeSeconds % 3600) / 60)
+			local seconds = uptimeSeconds % 60
+			local uptimeFormatted = string.format("%02d:%02d:%02d", hours, minutes, seconds)
+
+			local shecklesStr = "43.62M"
+			if LocalPlayer:FindFirstChild("leaderstats") then
+				local cash = LocalPlayer.leaderstats:FindFirstChild("Sheckles") or LocalPlayer.leaderstats:FindFirstChild("Cash")
+				if cash then
+					currentShecklesNum = tonumber(cash.Value) or currentShecklesNum
+					shecklesStr = tostring(cash.Value)
+				end
+			end
+
+			local earned = currentShecklesNum - initialSheckles
+			local hoursElapsed = uptimeSeconds / 3600
+			local ratePerHr = hoursElapsed > 0 and (earned / hoursElapsed) or 0
+			local rateStr = string.format("%.2fM/hr", ratePerHr / 1000000)
+
+			local currentPlantsTotal = #myPlantModels()
+			local plantLimitConfig = PlantCfg["Plant Limit"] or 69
+			local plantLimitStr = plantLimitConfig > 0 and tostring(plantLimitConfig) or "OFF"
+			local liveWeather = getActiveWeather()
+
+			StatsContent.Text = string.format(
+				"Uptime %s\n\n%s Sheckles\n+%s\n\nPlants: %d / %s\nHarvested %.1fK\n\nWeather: %s",
+				uptimeFormatted, shecklesStr, rateStr, currentPlantsTotal, plantLimitStr, harvestedCount / 1000, liveWeather
+			)
+			updateCompactInfo(currentPlantsTotal)
+		end)
 	end
 end)
 
@@ -311,14 +658,21 @@ task.spawn(function()
 						end
 						
 						if not skip then
+							updateTopStatus("Harvesting: " .. tostring(e.name))
 							local collectRes = fire("Garden", "CollectFruit", e.plantId, e.fruitId)
+							
 							if collectRes == "Full" or collectRes == false or #list >= (HarvestCfg["Sell At"] or 75) then
+								updateTopStatus("Selling Inventory...")
 								fire("NPCS", "SellAll")
 								invoke({ "NPCS", "SellAll" })
+								pushPurchasedLog("sold inventory")
 							end
+							harvestedCount = harvestedCount + 1
 							task.wait(0.04)
 						end
 					end
+				else
+					updateTopStatus("Running")
 				end
 			end
 		end)
@@ -330,8 +684,10 @@ task.spawn(function()
 	while task.wait(HarvestCfg["Sell Every"] or 20) do
 		pcall(function()
 			if HarvestCfg["Auto Harvest"] ~= false then
+				updateTopStatus("Selling (Interval)...")
 				fire("NPCS", "SellAll")
 				invoke({ "NPCS", "SellAll" })
+				pushPurchasedLog("sold inventory (Interval)")
 			end
 		end)
 	end
@@ -356,8 +712,10 @@ task.spawn(function()
 					end
 
 					if not isBlocked then
+						updateTopStatus("Buying Seed: " .. tostring(seedName))
 						invoke({ "SeedShop", "PurchaseSeed" }, seedName)
 						fire("SeedShop", "PurchaseSeed", seedName)
+						pushPurchasedLog("beli benih " .. seedName)
 						task.wait(0.2)
 					end
 				end
@@ -373,8 +731,10 @@ task.spawn(function()
 			if GearCfg["Auto Buy"] then
 				local gearBuyList = GearCfg["Buy Gear"] or {}
 				for _, gearName in ipairs(gearBuyList) do
+					updateTopStatus("Buying Gear: " .. tostring(gearName))
 					invoke({ "GearShop", "PurchaseGear" }, gearName)
 					fire("GearShop", "PurchaseGear", gearName)
+					pushPurchasedLog("beli gear " .. gearName)
 					task.wait(0.5)
 				end
 			end
@@ -406,7 +766,7 @@ task.spawn(function()
 								safe = true
 							end
 
-							local isGold = p:GetAttribute("Gold"] or false
+							local isGold = p:GetAttribute("Gold") or false
 							local isRainbow = p:GetAttribute("Rainbow") or false
 							local isMega = p:GetAttribute("Mega") or false
 							
@@ -420,7 +780,9 @@ task.spawn(function()
 							end
 
 							if not safe then
+								updateTopStatus("Replacing over limit: " .. tostring(pName))
 								fire("Garden", "ShovelPlant", p:GetAttribute("PlantId"))
+								pushPlantShovelLog("[REPLACE] Shovel " .. tostring(pName))
 								task.wait(0.3)
 								break
 							end
@@ -429,15 +791,26 @@ task.spawn(function()
 				end
 
 				for _, tool in ipairs(getToolsWithAttribute("SeedTool")) do
-					local seedName = tool:GetAttribute("SeedTool"] or "Seed"
+					local seedName = tool:GetAttribute("SeedTool") or "Seed"
 					if isSeedAllowed(seedName, tool) then
+						local isGold = tool:GetAttribute("Gold") or false
+						local isRainbow = tool:GetAttribute("Rainbow") or false
+						local isMega = tool:GetAttribute("Mega") or false
+						
+						local variantTag = ""
+						if isGold then variantTag = "[GOLD] "
+						elseif isRainbow then variantTag = "[RAINBOW] "
+						elseif isMega then variantTag = "[MEGA] " end
+
 						lastPlantedName = tostring(seedName)
+						updateTopStatus("Planting: " .. variantTag .. seedName)
 						local pos = getPlantPosition()
 						local _, _, hum = getCharacter()
 						if pos and hum then
 							if tool.Parent ~= LocalPlayer.Character then hum:EquipTool(tool) end
 							task.wait(0.05)
 							fire("Plant", "PlantSeed", pos, seedName, tool)
+							pushPlantShovelLog("[SUKSES] Tanam " .. variantTag .. seedName)
 							task.wait(0.3)
 						end
 					end
@@ -498,4 +871,4 @@ task.spawn(function()
 	end
 end)
 
-print("[DonnHub GAG2] Safe Bootstrapper Engine active! Watch actions in F9.")
+print("[DonnHub] Engine fully loaded with GUI & Config synchronization!")

@@ -1,4 +1,4 @@
--- File: loader/Core-Logic.lua (Full Complete Automation Script)
+-- File: loader/Core-Logic.lua (GAG2 Fully Synchronized Automation Engine)
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
@@ -7,6 +7,7 @@ local Lighting          = game:GetService("Lighting")
 local Workspace         = game:GetService("Workspace")
 local CoreGui           = game:GetService("CoreGui")
 local TweenService      = game:GetService("TweenService")
+local RunService        = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -21,12 +22,20 @@ local EventSeedCfg  = Config["Event Seeds"] or {}
 local MailCfg       = Config["Mail"] or {}
 local MiscCfg       = Config["Misc"] or {}
 local FriendsCfg    = Config["Friends"] or {}
+local GuildCfg      = Config["Guild"] or {}
 local AuctionCfg    = Config["Auction"] or {}
 local EggsCfg       = Config["Eggs"] or {}
 local PerfCfg       = Config["Performance"] or {}
 local DebugCfg      = Config["Debug"] or {}
 
 local purchaseCounters = {}
+local rareCounters = {
+	Gold = 0,
+	Rainbow = 0,
+	Mega = 0
+}
+
+local lastPlantedName = "None"
 
 --// 1. Delta File Logging System
 local function writeDebugLog(fileName, message)
@@ -48,42 +57,50 @@ local function writeDebugLog(fileName, message)
 	end)
 end
 
---// 2. Networking Hook (ByteNet Packet System)
+--// 2. Networking Hook (ByteNet Packet System - GAG2 Robust Routing)
 local Net
 pcall(function()
 	Net = require(ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("Networking"))
 end)
 
-local function fire(...)
+local function fire(category, action, ...)
 	if not Net then return end
-	local argc = select("#", ...)
-	local args = table.pack(...)
-	local node, depth = Net, 0
-	for i = 1, argc do
-		if type(args[i]) == "string" and type(node) == "table" and node[args[i]] ~= nil then
-			node = node[args[i]]
-			depth = i
-			if type(node) ~= "table" or type(node.Fire) == "function" then break end
-		else
-			break
+	local ok, res = pcall(function()
+		if type(Net) == "table" then
+			if Net[category] and type(Net[category].Fire) == "function" then
+				return Net[category]:Fire(action, ...)
+			elseif Net[category] and type(Net[category][action]) == "function" then
+				return Net[category][action](...)
+			elseif Net[category] and type(Net[category][action]) == "table" and type(Net[category][action].Fire) == "function" then
+				return Net[category][action]:Fire(...)
+			end
 		end
-	end
-	if type(node) == "table" and type(node.Fire) == "function" then
-		return select(2, pcall(function()
-			return node:Fire(table.unpack(args, depth + 1, argc))
-		end))
-	end
+	end)
+	return res
 end
 
 local function invoke(path, ...)
 	local n
-	if type(path) == "table" then n = Net; for _, k in ipairs(path) do n = n and n[k] end
-	else n = Net and Net[path] end
-	if n and type(n.Fire) == "function" then
-		local argc = select("#", ...)
-		local extra = table.pack(...)
-		local ok, res = pcall(function() return n:Fire(table.unpack(extra, 1, argc)) end)
-		if ok then return res end
+	if type(path) == "table" then
+		n = Net
+		for _, k in ipairs(path) do 
+			n = n and n[k] 
+		end
+	else 
+		n = Net and Net[path] 
+	end
+	
+	if n then
+		if type(n.Fire) == "function" then
+			local ok, res = pcall(function() return n:Fire(...) end)
+			if ok then return res end
+		elseif type(n.Invoke) == "function" then
+			local ok, res = pcall(function() return n:Invoke(...) end)
+			if ok then return res end
+		elseif type(n) == "function" then
+			local ok, res = pcall(function() return n(...) end)
+			if ok then return res end
+		end
 	end
 	return nil
 end
@@ -127,7 +144,13 @@ local function moveToGarden()
 			if targetPart then
 				local destPos = targetPart.Position + Vector3.new(0, 4, 0)
 				if (hrp.Position - destPos).Magnitude > 25 then
-					hrp.CFrame = CFrame.new(destPos)
+					if MiscCfg["Fast Travel"] then
+						local tweenInfo = TweenInfo.new((hrp.Position - destPos).Magnitude / (MiscCfg["Slide Speed"] or 30), Enum.EasingStyle.Linear)
+						local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(destPos)})
+						tween:Play()
+					else
+						hrp.CFrame = CFrame.new(destPos)
+					end
 				end
 			end
 		end
@@ -248,9 +271,11 @@ local function getActiveWeather()
 	return currentWeather
 end
 
---// 4. Custom GUI & Toast Notification (Kanan Bawah)
-if CoreGui:FindFirstChild("DonnHubDashboard") then
-	CoreGui.DonnHubDashboard:Destroy()
+--// 4. Custom GUI & Clean Single Instance Initialization
+for _, guiName in ipairs({"DonnHubDashboard", "GAGHubGui", "DonnHubGui"}) do
+	if CoreGui:FindFirstChild(guiName) then
+		CoreGui[guiName]:Destroy()
+	end
 end
 
 local ScreenGui = Instance.new("ScreenGui")
@@ -258,78 +283,6 @@ ScreenGui.Name = "DonnHubDashboard"
 ScreenGui.Parent = CoreGui
 ScreenGui.IgnoreGuiInset = true
 
--- Banner Status Bar di Atas Tengah Layar
-local TopStatusBar = Instance.new("Frame")
-TopStatusBar.Size = UDim2.new(0, 380, 0, 32)
-TopStatusBar.Position = UDim2.new(0.5, -190, 0, 10)
-TopStatusBar.BackgroundColor3 = Color3.fromRGB(15, 22, 18)
-TopStatusBar.BackgroundTransparency = 0.2
-TopStatusBar.BorderSizePixel = 0
-TopStatusBar.ZIndex = 25
-TopStatusBar.Parent = ScreenGui
-Instance.new("UICorner", TopStatusBar).CornerRadius = UDim.new(0, 8)
-local TopStroke = Instance.new("UIStroke")
-TopStroke.Color = Color3.fromRGB(0, 255, 130)
-TopStroke.Thickness = 1.5
-TopStroke.Parent = TopStatusBar
-
-local TopStatusText = Instance.new("TextLabel")
-TopStatusText.Size = UDim2.new(1, 0, 1, 0)
-TopStatusText.BackgroundTransparency = 1
-TopStatusText.TextColor3 = Color3.fromRGB(0, 255, 150)
-TopStatusText.TextSize = 13
-TopStatusText.Font = Enum.Font.GothamBold
-TopStatusText.TextXAlignment = Enum.TextXAlignment.Center
-TopStatusText.TextYAlignment = Enum.TextYAlignment.Center
-TopStatusText.ZIndex = 26
-TopStatusText.Text = "Status: Initializing Engine..."
-TopStatusText.Parent = TopStatusBar
-
-local ToastFrame = Instance.new("Frame")
-ToastFrame.Size = UDim2.new(0, 310, 0, 50)
-ToastFrame.Position = UDim2.new(1, 20, 1, -70)
-ToastFrame.BackgroundColor3 = Color3.fromRGB(15, 20, 18)
-ToastFrame.BorderSizePixel = 0
-ToastFrame.ZIndex = 20
-ToastFrame.Parent = ScreenGui
-Instance.new("UICorner", ToastFrame).CornerRadius = UDim.new(0, 8)
-local ToastStroke = Instance.new("UIStroke")
-ToastStroke.Color = Color3.fromRGB(0, 255, 130)
-ToastStroke.Thickness = 1.5
-ToastStroke.Parent = ToastFrame
-
-local ToastIcon = Instance.new("TextLabel")
-ToastIcon.Size = UDim2.new(0, 40, 1, 0)
-ToastIcon.BackgroundTransparency = 1
-ToastIcon.Text = "🌱"
-ToastIcon.TextSize = 20
-ToastIcon.ZIndex = 21
-ToastIcon.Parent = ToastFrame
-
-local ToastText = Instance.new("TextLabel")
-ToastText.Size = UDim2.new(1, -45, 1, 0)
-ToastText.Position = UDim2.new(0, 40, 0, 0)
-ToastText.BackgroundTransparency = 1
-ToastText.TextColor3 = Color3.fromRGB(240, 255, 245)
-ToastText.TextSize = 12
-ToastText.Font = Enum.Font.GothamBold
-ToastText.TextXAlignment = Enum.TextXAlignment.Left
-ToastText.Text = "DonnHub Loaded Successfully!\nConfig & Automation Engine Active."
-ToastText.ZIndex = 21
-ToastText.Parent = ToastFrame
-
-task.spawn(function()
-	local tweenIn = TweenService:Create(ToastFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(1, -330, 1, -70)})
-	tweenIn:Play()
-	tweenIn.Completed:Wait()
-	
-	task.wait(4)
-	
-	local tweenOut = TweenService:Create(ToastFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(1, 20, 1, -70)})
-	tweenOut:Play()
-end)
-
--- Main Frame (Full Screen Cover)
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(1, 0, 1, 0)
 MainFrame.Position = UDim2.new(0, 0, 0, 0)
@@ -339,7 +292,6 @@ MainFrame.BorderSizePixel = 0
 MainFrame.ZIndex = 2
 MainFrame.Parent = ScreenGui
 
--- Center Container untuk Panel
 local Container = Instance.new("Frame")
 Container.Size = UDim2.new(0, 780, 0, 480)
 Container.Position = UDim2.new(0.5, -390, 0.5, -240)
@@ -353,23 +305,6 @@ local ContainerStroke = Instance.new("UIStroke")
 ContainerStroke.Color = Color3.fromRGB(0, 255, 130)
 ContainerStroke.Thickness = 1.5
 ContainerStroke.Parent = Container
-
--- Tombol Tunggal Hide/Open di Kiri Atas Layar
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Size = UDim2.new(0, 120, 0, 36)
-ToggleButton.Position = UDim2.new(0, 15, 0, 55)
-ToggleButton.BackgroundColor3 = Color3.fromRGB(15, 20, 18)
-ToggleButton.TextColor3 = Color3.fromRGB(0, 255, 150)
-ToggleButton.TextSize = 12
-ToggleButton.Font = Enum.Font.GothamBold
-ToggleButton.Text = "🌱 HIDE GUI"
-ToggleButton.ZIndex = 50
-ToggleButton.Parent = ScreenGui
-Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 8)
-local ToggleStroke = Instance.new("UIStroke")
-ToggleStroke.Color = Color3.fromRGB(0, 255, 150)
-ToggleStroke.Thickness = 1.5
-ToggleStroke.Parent = ToggleButton
 
 -- Kolom Kiri (Purchased Log)
 local LeftCol = Instance.new("ScrollingFrame")
@@ -429,6 +364,33 @@ StatsContent.ZIndex = 4
 StatsContent.Text = "Uptime 00:00:00\n\nLoading Config Rules...\nPlants: 0 / 0\nHarvested 0\nWeather: Sunny"
 StatsContent.Parent = CenterCol
 
+-- Sub Status Bar di Bawah Harvest
+local SubStatusBar = Instance.new("Frame")
+SubStatusBar.Size = UDim2.new(1, -20, 0, 26)
+SubStatusBar.Position = UDim2.new(0, 10, 0, 150)
+SubStatusBar.BackgroundColor3 = Color3.fromRGB(22, 35, 28)
+SubStatusBar.BackgroundTransparency = 0.1
+SubStatusBar.BorderSizePixel = 0
+SubStatusBar.ZIndex = 5
+SubStatusBar.Parent = CenterCol
+Instance.new("UICorner", SubStatusBar).CornerRadius = UDim.new(0, 6)
+local SubStatusStroke = Instance.new("UIStroke")
+SubStatusStroke.Color = Color3.fromRGB(255, 200, 0)
+SubStatusStroke.Thickness = 1.2
+SubStatusStroke.Parent = SubStatusBar
+
+local SubStatusText = Instance.new("TextLabel")
+SubStatusText.Size = UDim2.new(1, 0, 1, 0)
+SubStatusText.BackgroundTransparency = 1
+SubStatusText.TextColor3 = Color3.fromRGB(255, 235, 100)
+SubStatusText.TextSize = 11
+SubStatusText.Font = Enum.Font.GothamBold
+SubStatusText.TextXAlignment = Enum.TextXAlignment.Center
+SubStatusText.TextYAlignment = Enum.TextYAlignment.Center
+SubStatusText.ZIndex = 6
+SubStatusText.Text = "Status: Initializing Engine..."
+SubStatusText.Parent = SubStatusBar
+
 -- Kolom Kanan (Shovel / Rare Seed Log)
 local RightCol = Instance.new("ScrollingFrame")
 RightCol.Size = UDim2.new(0, 175, 1, -85)
@@ -456,43 +418,71 @@ RightText.ZIndex = 4
 RightText.Text = "[PLANT / RARE SEED]\n"
 RightText.Parent = RightCol
 
--- Bottom Bar di dalam Container
+-- Bottom Bar
 local BottomBar = Instance.new("Frame")
-BottomBar.Size = UDim2.new(1, -30, 0, 55)
-BottomBar.Position = UDim2.new(0, 15, 1, -65)
+BottomBar.Size = UDim2.new(1, -30, 0, 85)
+BottomBar.Position = UDim2.new(0, 15, 1, -90)
 BottomBar.BackgroundTransparency = 1
 BottomBar.ZIndex = 4
 BottomBar.Parent = Container
 
--- Console Button di atas
+local RareCounterLabel = Instance.new("TextLabel")
+RareCounterLabel.Size = UDim2.new(1, 0, 0, 18)
+RareCounterLabel.Position = UDim2.new(0, 0, 0, 0)
+RareCounterLabel.BackgroundTransparency = 1
+RareCounterLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+RareCounterLabel.TextSize = 11
+RareCounterLabel.Font = Enum.Font.GothamBold
+RareCounterLabel.TextXAlignment = Enum.TextXAlignment.Center
+RareCounterLabel.TextYAlignment = Enum.TextYAlignment.Center
+RareCounterLabel.ZIndex = 5
+RareCounterLabel.Text = "G 0 R 0 M 0"
+RareCounterLabel.Parent = BottomBar
+
+local CompactInfoLabel = Instance.new("TextLabel")
+CompactInfoLabel.Size = UDim2.new(1, 0, 0, 18)
+CompactInfoLabel.Position = UDim2.new(0, 0, 0, 18)
+CompactInfoLabel.BackgroundTransparency = 1
+CompactInfoLabel.TextColor3 = Color3.fromRGB(150, 230, 200)
+CompactInfoLabel.TextSize = 10
+CompactInfoLabel.Font = Enum.Font.Gotham
+CompactInfoLabel.TextXAlignment = Enum.TextXAlignment.Center
+CompactInfoLabel.TextYAlignment = Enum.TextYAlignment.Center
+CompactInfoLabel.ZIndex = 5
+CompactInfoLabel.Text = "Plant: 0 | Sell: 20s | Gear: None | Last: None"
+CompactInfoLabel.Parent = BottomBar
+
 local ConsoleButton = Instance.new("TextButton")
-ConsoleButton.Size = UDim2.new(0, 140, 0, 22)
-ConsoleButton.Position = UDim2.new(0.5, -70, 0, 0)
+ConsoleButton.Size = UDim2.new(0, 120, 0, 18)
+ConsoleButton.Position = UDim2.new(0.5, -60, 0, 38)
 ConsoleButton.BackgroundColor3 = Color3.fromRGB(22, 28, 25)
 ConsoleButton.TextColor3 = Color3.fromRGB(180, 220, 200)
-ConsoleButton.TextSize = 10
+ConsoleButton.TextSize = 9
 ConsoleButton.Font = Enum.Font.GothamBold
 ConsoleButton.Text = "CONSOLE: ON"
 ConsoleButton.ZIndex = 5
 ConsoleButton.Parent = BottomBar
-Instance.new("UICorner", ConsoleButton).CornerRadius = UDim.new(0, 6)
+Instance.new("UICorner", ConsoleButton).CornerRadius = UDim.new(0, 5)
 local ConsoleStroke = Instance.new("UIStroke")
 ConsoleStroke.Color = Color3.fromRGB(0, 255, 130)
 ConsoleStroke.Transparency = 0.5
 ConsoleStroke.Parent = ConsoleButton
 
--- Status Label di Bawah Console Button
-local StatusInfoLabel = Instance.new("TextLabel")
-StatusInfoLabel.Size = UDim2.new(1, 0, 0, 24)
-StatusInfoLabel.Position = UDim2.new(0, 0, 0, 28)
-StatusInfoLabel.BackgroundTransparency = 1
-StatusInfoLabel.TextColor3 = Color3.fromRGB(120, 160, 140)
-StatusInfoLabel.TextSize = 11
-StatusInfoLabel.Font = Enum.Font.Gotham
-StatusInfoLabel.TextXAlignment = Enum.TextXAlignment.Center
-StatusInfoLabel.Text = "DonnHub Automation Engine Active & Protected"
-StatusInfoLabel.ZIndex = 5
-StatusInfoLabel.Parent = BottomBar
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(0, 130, 0, 22)
+ToggleButton.Position = UDim2.new(0.5, -65, 0, 58)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(15, 22, 18)
+ToggleButton.TextColor3 = Color3.fromRGB(0, 255, 150)
+ToggleButton.TextSize = 11
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.Text = "🌱 HIDE GUI"
+ToggleButton.ZIndex = 5
+ToggleButton.Parent = BottomBar
+Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 6)
+local ToggleStroke = Instance.new("UIStroke")
+ToggleStroke.Color = Color3.fromRGB(0, 255, 150)
+ToggleStroke.Thickness = 1.2
+ToggleStroke.Parent = ToggleButton
 
 local purchasedLogs = {}
 local plantShovelLogs = {}
@@ -500,7 +490,18 @@ local currentStatus = "Starting Engine"
 
 local function updateTopStatus(text)
 	currentStatus = text
-	TopStatusText.Text = "Status: " .. text
+	SubStatusText.Text = "Status: " .. text
+end
+
+local function updateRareCounterDisplay()
+	RareCounterLabel.Text = string.format("G %d R %d M %d", rareCounters.Gold, rareCounters.Rainbow, rareCounters.Mega)
+end
+
+local function updateCompactInfo(totalPlants)
+	local sellEvery = HarvestCfg["Sell Every"] or 20
+	local gearBuyList = GearCfg["Buy Gear"] or {}
+	local activeGear = (#gearBuyList > 0) and tostring(gearBuyList[1]) or "None"
+	CompactInfoLabel.Text = string.format("Plant: %d | Sell: %ds | Gear: %s | Last: %s", totalPlants, sellEvery, activeGear, lastPlantedName)
 end
 
 local function pushPurchasedLog(msg)
@@ -522,12 +523,20 @@ local function pushPlantShovelLog(msg)
 end
 
 ToggleButton.MouseButton1Click:Connect(function()
-	if MainFrame.Visible then
-		MainFrame.Visible = false
+	if Container.Visible then
+		Container.Visible = false
+		MainFrame.BackgroundTransparency = 1
 		ToggleButton.Text = "🌱 OPEN GUI"
+		if MiscCfg["Hide Game UI"] then
+			game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.All, true)
+		end
 	else
-		MainFrame.Visible = true
+		Container.Visible = true
+		MainFrame.BackgroundTransparency = 0.15
 		ToggleButton.Text = "🌱 HIDE GUI"
+		if MiscCfg["Hide Game UI"] then
+			game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.All, false)
+		end
 	end
 end)
 
@@ -543,7 +552,7 @@ ConsoleButton.MouseButton1Click:Connect(function()
 	end
 end)
 
---// 5. Strict Config Enforcement Helper Functions
+--// 5. Config Enforcement & Safe Execution Helpers
 local function isSeedAllowed(seedName, toolObj)
 	if not seedName then return false end
 	
@@ -579,7 +588,7 @@ local function isSeedAllowed(seedName, toolObj)
 	return true
 end
 
---// 6. Config Enforcement & Automation Engine
+--// 6. Automation Loops Engine
 local startTime = tick()
 local initialSheckles = 0
 local currentShecklesNum = 0
@@ -592,25 +601,40 @@ pcall(function()
 	end
 end)
 
-task.spawn(function()
-	pcall(function()
-		if PerfCfg["FPS Cap"] and PerfCfg["FPS Cap"] > 0 and setfpscap then
-			setfpscap(PerfCfg["FPS Cap"])
-		end
-		if PerfCfg["Low Graphics"] then
-			Lighting.GlobalShadows = false
-			Lighting.FogEnd = 999999
-		end
-	end)
-end)
-
--- Auto Positioning Loop
+-- Misc & Performance Integration
 task.spawn(function()
 	while task.wait(3) do
-		moveToGarden()
+		pcall(function()
+			-- FPS Cap
+			if PerfCfg["FPS Cap"] and PerfCfg["FPS Cap"] > 0 and setfpscap then
+				setfpscap(PerfCfg["FPS Cap"])
+			end
+			-- Low Graphics & Visual Optimizations
+			if PerfCfg["Low Graphics"] then
+				Lighting.GlobalShadows = false
+				Lighting.FogEnd = 999999
+			end
+			-- Walk Speed Override
+			local hum = select(3, getCharacter())
+			if hum and MiscCfg["Walk Speed"] and MiscCfg["Walk Speed"] > 0 then
+				hum.WalkSpeed = MiscCfg["Walk Speed"]
+			end
+		end)
 	end
 end)
 
+-- Auto Return to Garden / Teleport loop
+task.spawn(function()
+	while task.wait(3) do
+		pcall(function()
+			if MiscCfg["Auto Return To Garden"] then
+				moveToGarden()
+			end
+		end)
+	end
+end)
+
+-- UI Status Refresh Loop
 task.spawn(function()
 	while task.wait(1) do
 		pcall(function()
@@ -635,21 +659,23 @@ task.spawn(function()
 			local rateStr = string.format("%.2fM/hr", ratePerHr / 1000000)
 
 			local currentPlantsTotal = #myPlantModels()
-			local plantLimitConfig = PlantCfg["Plant Limit"] or 0
+			local plantLimitConfig = PlantCfg["Plant Limit"] or 69
 			local plantLimitStr = plantLimitConfig > 0 and tostring(plantLimitConfig) or "OFF"
 			local liveWeather = getActiveWeather()
 
 			StatsContent.Text = string.format(
-				"Uptime %s\n\n%s Sheckles\n+%s\n\nPlants: %d / %s\nHarvested %.1fK\nStatus: %s\n\nWeather: %s",
-				uptimeFormatted, shecklesStr, rateStr, currentPlantsTotal, plantLimitStr, harvestedCount / 1000, currentStatus, liveWeather
+				"Uptime %s\n\n%s Sheckles\n+%s\n\nPlants: %d / %s\nHarvested %.1fK\n\nWeather: %s",
+				uptimeFormatted, shecklesStr, rateStr, currentPlantsTotal, plantLimitStr, harvestedCount / 1000, liveWeather
 			)
+
+			updateCompactInfo(currentPlantsTotal)
 		end)
 	end
 end)
 
--- 1. Harvest Loop
+-- 1. Harvest & Reliable Selling Loop (Fixing Sell At, Sell Every, and Emergency Full Inventory)
 task.spawn(function()
-	while task.wait(1.5) do
+	while task.wait(1.0) do
 		pcall(function()
 			if HarvestCfg["Auto Harvest"] ~= false and Net then
 				local list = scanCollectibleDetailed()
@@ -664,9 +690,17 @@ task.spawn(function()
 						
 						if not skip then
 							updateTopStatus("Harvesting: " .. tostring(e.name))
-							fire("Garden", "CollectFruit", e.plantId, e.fruitId)
+							local collectRes = fire("Garden", "CollectFruit", e.plantId, e.fruitId)
+							
+							if collectRes == "Full" or collectRes == false or #list >= (HarvestCfg["Sell At"] or 75) then
+								updateTopStatus("Inventory Full / Sell At Reached! Selling...")
+								fire("NPCS", "SellAll")
+								invoke({ "NPCS", "SellAll" })
+								pushPurchasedLog("sold inventory (Sell Trigger)")
+							end
+							
 							harvestedCount = harvestedCount + 1
-							task.wait(0.1)
+							task.wait(0.04)
 						end
 					end
 				else
@@ -677,48 +711,50 @@ task.spawn(function()
 	end
 end)
 
--- 2. Sell Loop
+-- 2. Timed Sell Loop (Sell Every)
 task.spawn(function()
-	while task.wait(HarvestCfg["Sell Every"] or 40) do
-		pcall(function()
-			if HarvestCfg["Auto Harvest"] ~= false and Net then
-				updateTopStatus("Selling Fruit / Inventory...")
-				local sellRes = invoke({ "NPCS", "SellAll" })
-				if sellRes ~= false and sellRes ~= nil then
-					pushPurchasedLog("sold inventory (SellAll)")
+	local sellInterval = HarvestCfg["Sell Every"] or 20
+	if sellInterval > 0 then
+		while task.wait(sellInterval) do
+			pcall(function()
+				if HarvestCfg["Auto Harvest"] ~= false and Net then
+					updateTopStatus("Selling Fruit / Inventory (Interval)...")
+					fire("NPCS", "SellAll")
+					invoke({ "NPCS", "SellAll" })
+					pushPurchasedLog("sold inventory (Sell Every)")
 				end
-			end
-		end)
+			end)
+		end
 	end
 end)
 
--- 3. Buy Seeds Loop
+-- 3. Buy Seeds Loop (Supports Keep Seeds Sniper & Mail Stocking)
 task.spawn(function()
-	while task.wait(5) do
+	while task.wait(3) do
 		pcall(function()
 			if Net then
 				local seedsToBuyMap = PlantCfg["Buy Seeds"] or {}
+				local keepSeedsMap = PlantCfg["Keep Seeds"] or {}
 				
-				for seedName, maxTarget in pairs(seedsToBuyMap) do
-					if type(seedName) == "string" and type(maxTarget) == "number" then
-						if not purchaseCounters[seedName] then purchaseCounters[seedName] = 0 end
-						
-						if purchaseCounters[seedName] < maxTarget then
-							local dontBuyList = PlantCfg["Don't Buy"] or {}
-							local isBlocked = false
-							for _, db in ipairs(dontBuyList) do
-								if string.lower(seedName) == string.lower(db) then isBlocked = true break end
-							end
+				local combinedBuyList = {}
+				for k, v in pairs(seedsToBuyMap) do combinedBuyList[k] = v end
+				for k, v in pairs(keepSeedsMap) do combinedBuyList[k] = v end
 
-							if not isBlocked then
-								updateTopStatus("Buying Seed: " .. tostring(seedName))
-								local res = invoke({ "SeedShop", "PurchaseSeed" }, seedName)
-								if res ~= false and res ~= nil then
-									purchaseCounters[seedName] = purchaseCounters[seedName] + 1
-									pushPurchasedLog(string.format("beli benih %s (%d/%d)", seedName, purchaseCounters[seedName], maxTarget))
-								end
-								task.wait(0.2)
+				for seedName, maxTarget in pairs(combinedBuyList) do
+					if type(seedName) == "string" then
+						local dontBuyList = PlantCfg["Don't Buy"] or {}
+						local isBlocked = false
+						for _, db in ipairs(dontBuyList) do
+							if string.lower(seedName) == string.lower(db) then isBlocked = true break end
+						end
+
+						if not isBlocked then
+							updateTopStatus("Buying Seed: " .. tostring(seedName))
+							local res = invoke({ "SeedShop", "PurchaseSeed" }, seedName) or fire("SeedShop", "PurchaseSeed", seedName)
+							if res ~= false and res ~= nil then
+								pushPurchasedLog(string.format("beli benih %s", seedName))
 							end
+							task.wait(0.15)
 						end
 					end
 				end
@@ -735,7 +771,7 @@ task.spawn(function()
 			if GearCfg["Auto Buy"] and Net then
 				for _, gearName in ipairs(gearBuyList) do
 					updateTopStatus("Buying Gear: " .. tostring(gearName))
-					local res = invoke({ "GearShop", "PurchaseGear" }, gearName)
+					local res = invoke({ "GearShop", "PurchaseGear" }, gearName) or fire("GearShop", "PurchaseGear", gearName)
 					if res ~= false and res ~= nil then
 						pushPurchasedLog("beli gear " .. tostring(gearName))
 					end
@@ -746,22 +782,18 @@ task.spawn(function()
 	end
 end)
 
--- 5. Plant Loop
+-- 5. Plant & Fixed Shovel / Over Limit Replace Loop
 task.spawn(function()
-	while task.wait(1.5) do
+	while task.wait(1.2) do
 		pcall(function()
 			if PlantCfg["Auto Plant"] ~= false and Net then
-				local plantLimit = PlantCfg["Plant Limit"] or 0
+				local plantLimit = PlantCfg["Plant Limit"] or 69
 				local plants = myPlantModels()
 				
 				if plantLimit > 0 and #plants > plantLimit then
 					local neverShovel = PlantCfg["Never Shovel"] or {}
-					local excessCount = #plants - plantLimit
-					local shoveledThisCycle = 0
-					
-					for i = 1, #plants do
-						if shoveledThisCycle >= excessCount then break end
-						local p = plants[i]
+					for _, p in ipairs(plants) do
+						if #myPlantModels() <= plantLimit then break end
 						if p and p:GetAttribute("PlantId") then
 							local pName = p:GetAttribute("SeedName") or p.Name or "Unknown Crop"
 							local safe = false
@@ -770,29 +802,38 @@ task.spawn(function()
 								if string.lower(pName) == string.lower(ns) then safe = true break end
 							end
 							
+							if string.lower(pName):find("eclipse bloom") then
+								safe = true
+							end
+
 							local isGold = p:GetAttribute("Gold") or false
 							local isRainbow = p:GetAttribute("Rainbow") or false
 							local isMega = p:GetAttribute("Mega") or false
 							
-							if (EventSeedCfg["Never Shovel Gold"] and isGold) or
-							   (EventSeedCfg["Never Shovel Rainbow"] and isRainbow) or
-							   (EventSeedCfg["Never Shovel Mega"] and isMega) then
+							if PlantCfg["Shovel Mutated"] == false and (isGold or isRainbow or isMega) then
+								safe = true
+							end
+
+							local plantTier = string.lower(tostring(p:GetAttribute("Tier") or p:GetAttribute("Rarity") or ""))
+							local shovelUpTo = string.lower(tostring(PlantCfg["Shovel Up To"] or "Epic"))
+							
+							if plantTier == "mythic" or plantTier == "super" or plantTier == "secret" then
 								safe = true
 							end
 
 							if not safe then
-								updateTopStatus("Shoveling excess: " .. tostring(pName))
+								updateTopStatus("Replacing over limit: " .. tostring(pName))
 								local successShovel = pcall(function()
 									fire("Garden", "ShovelPlant", p:GetAttribute("PlantId"))
 								end)
 								
 								if successShovel then
-									pushPlantShovelLog(string.format("[SUKSES] Shovel %s", tostring(pName)))
-									shoveledThisCycle = shoveledThisCycle + 1
+									pushPlantShovelLog(string.format("[REPLACE] Shovel %s", tostring(pName)))
 								else
 									pushPlantShovelLog(string.format("[GAGAL] Shovel %s", tostring(pName)))
 								end
-								task.wait(0.15)
+								task.wait(0.3)
+								break
 							end
 						end
 					end
@@ -806,11 +847,22 @@ task.spawn(function()
 						local isMega = tool:GetAttribute("Mega") or false
 						
 						local variantTag = ""
-						if isGold then variantTag = "[GOLD] "
-						elseif isRainbow then variantTag = "[RAINBOW] "
-						elseif isMega then variantTag = "[MEGA] " end
+						if isGold then
+							variantTag = "[GOLD] "
+							rareCounters.Gold = rareCounters.Gold + 1
+							updateRareCounterDisplay()
+						elseif isRainbow then
+							variantTag = "[RAINBOW] "
+							rareCounters.Rainbow = rareCounters.Rainbow + 1
+							updateRareCounterDisplay()
+						elseif isMega then
+							variantTag = "[MEGA] "
+							rareCounters.Mega = rareCounters.Mega + 1
+							updateRareCounterDisplay()
+						end
 
-						updateTopStatus("Planting: " .. variantTag .. tostring(seedName))
+						lastPlantedName = tostring(seedName)
+						updateTopStatus("Planting: " .. variantTag .. seedName)
 						local pos = getPlantPosition()
 						local _, _, hum = getCharacter()
 						if pos and hum then
@@ -822,11 +874,11 @@ task.spawn(function()
 							end)
 							
 							if successPlant then
-								pushPlantShovelLog(string.format("[SUKSES] Tanam %s%s", variantTag, tostring(seedName)))
+								pushPlantShovelLog(string.format("[SUKSES] Tanam %s%s", variantTag, seedName))
 							else
-								pushPlantShovelLog(string.format("[GAGAL] Tanam %s%s", variantTag, tostring(seedName)))
+								pushPlantShovelLog(string.format("[GAGAL] Tanam %s%s", variantTag, seedName))
 							end
-							task.wait(0.15)
+							task.wait(0.3)
 						end
 					end
 				end
@@ -840,34 +892,23 @@ task.spawn(function()
 	while task.wait(4) do
 		pcall(function()
 			if EggsCfg["Auto Open"] and Net then
-				local openList = EggsCfg["Open"] or {}
+				local openList = EggsCfg["Open"] or {"all"}
 				for _, eggName in ipairs(openList) do
-					if eggName ~= "all" and hasItemInInventory(eggName) then
-						updateTopStatus("Opening Egg: " .. tostring(eggName))
-						local eggRes = invoke({ "Egg", "OpenEgg" }, eggName)
+					if hasItemInInventory(eggName) or eggName == "all" then
+						updateTopStatus("Opening Egg...")
+						local eggRes = invoke({ "Egg", "OpenEgg" }, eggName) or fire("Egg", "OpenEgg", eggName)
 						if eggRes ~= false and eggRes ~= nil then
-							pushPurchasedLog("buka egg " .. tostring(eggName))
+							pushPurchasedLog("buka egg")
 						end
 					end
 					task.wait(0.5)
-				end
-			end
-			
-			if PetsCfg and PetsCfg["Auto Hatch"] and Net then
-				local targetEgg = PetsCfg["Target Egg"] or "Common Egg"
-				if hasItemInInventory(targetEgg) then
-					updateTopStatus("Hatching Pets...")
-					local hatchRes = invoke({ "Pets", "HatchEgg" }, targetEgg)
-					if hatchRes ~= false and hatchRes ~= nil then
-						pushPurchasedLog("beli/tetas pet " .. tostring(targetEgg))
-					end
 				end
 			end
 		end)
 	end
 end)
 
--- 7. Auctioneer Auto Buy Loop
+-- 7. Auctioneer Auto Buy Loop (Silent Handler)
 task.spawn(function()
 	while task.wait(AuctionCfg["Check Every"] or 0.2) do
 		pcall(function()
@@ -875,23 +916,31 @@ task.spawn(function()
 				local buyItems = AuctionCfg["Buy"] or {}
 				for itemName, maxPrice in pairs(buyItems) do
 					updateTopStatus("Checking Auction: " .. tostring(itemName))
-					local aucRes = fire("Auctioneer", "PurchaseLot", itemName, maxPrice)
-					if aucRes ~= false and aucRes ~= nil then
+					local ok, aucRes = pcall(function()
+						return fire("Auctioneer", "PurchaseLot", itemName, maxPrice) or invoke({ "Auctioneer", "PurchaseLot" }, itemName, maxPrice)
+					end)
+					if ok and aucRes ~= false and aucRes ~= nil then
 						pushPurchasedLog("beli lelang " .. tostring(itemName))
 					end
+					task.wait(0.2)
 				end
 			end
 		end)
 	end
 end)
 
--- 8. Mailbox Auto Claim
+-- 8. Mailbox Auto Claim & Guild Auto Accept
 task.spawn(function()
 	while task.wait(30) do
 		pcall(function()
 			if MailCfg["Auto Claim"] and Net then
 				updateTopStatus("Claiming Mailbox...")
 				fire("Mailbox", "ClaimAll")
+				invoke({ "Mailbox", "ClaimAll" })
+			end
+			if GuildCfg["Auto Accept Invite"] and Net then
+				fire("Guild", "AcceptInvite")
+				invoke({ "Guild", "AcceptInvite" })
 			end
 		end)
 	end
@@ -907,4 +956,4 @@ task.spawn(function()
 	end
 end)
 
-print("[DonnHub] Script successfully loaded with Full Automation Engine!")
+print("[DonnHub] Script successfully synchronized with complete GAG2 config parameters!")

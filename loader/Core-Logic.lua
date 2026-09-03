@@ -1,106 +1,137 @@
--- File: loader/Core-Logic.lua
-local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local LocalPlayer = Players.LocalPlayer
+-- File: loader/Core-Logic.lua (Full GUI + Auto-Farm Engine)
+local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Orion/main/source'))()
+local Window = OrionLib:MakeWindow({Name = "DonnHub | Grow a Garden 2 Kaitun", HidePremium = false, SaveConfig = true, ConfigFolder = "DonnHubConfig"})
 
 local Config = _G.GAGConfig or {}
 local HarvestCfg = Config["Harvest"] or {}
 local PlantCfg = Config["Planting"] or {}
 local MoneyCfg = Config["Money"] or {}
 local PerfCfg = Config["Performance"] or {}
-local MiscCfg = Config["Misc"] or {}
 local AuctionCfg = Config["Auction"] or {}
+local MiscCfg = Config["Misc"] or {}
 
-print("[DonnHub Engine] Mengaktifkan mesin Auto-Farm Grow a Garden 2...")
+-- 1. Tab Utama: Harvest & Planting
+local TabMain = Window:MakeTab({
+    Name = "Farm & Plant",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
 
--- 1. Performa & Grafik
-task.spawn(function()
-    pcall(function()
-        if PerfCfg["FPS Cap"] and PerfCfg["FPS Cap"] > 0 and setfpscap then
-            setfpscap(PerfCfg["FPS Cap"])
-        end
-        if PerfCfg["Low Graphics"] then
+TabMain:AddToggle({
+    Name = "Auto Harvest",
+    Default = HarvestCfg["Auto Harvest"] or true,
+    Callback = function(Value)
+        HarvestCfg["Auto Harvest"] = Value
+    end
+})
+
+TabMain:AddSlider({
+    Name = "Sell Fruit At (%)",
+    Min = 10,
+    Max = 100,
+    Default = HarvestCfg["Sell At"] or 85,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "%",
+    Callback = function(Value)
+        HarvestCfg["Sell At"] = Value
+    end
+})
+
+TabMain:AddToggle({
+    Name = "Auto Plant",
+    Default = PlantCfg["Auto Plant"] or true,
+    Callback = function(Value)
+        PlantCfg["Auto Plant"] = Value
+    end
+})
+
+TabMain:AddDropdown({
+    Name = "Plant Layout",
+    Default = PlantCfg["Layout"] or "compact",
+    Options = {"compact", "spread", "grid"},
+    Callback = function(Value)
+        PlantCfg["Layout"] = Value
+    end
+})
+
+-- 2. Tab Kedua: Money & Auction
+local TabMoney = Window:MakeTab({
+    Name = "Money & Auction",
+    Icon = "rbxassetid://6023426915",
+    PremiumOnly = false
+})
+
+TabMoney:AddToggle({
+    Name = "Auto Expand Plot",
+    Default = MoneyCfg["Auto Expand Plot"] or true,
+    Callback = function(Value)
+        MoneyCfg["Auto Expand Plot"] = Value
+    end
+})
+
+TabMoney:AddToggle({
+    Name = "Auction Auto Buy",
+    Default = AuctionCfg["Auto Buy"] or true,
+    Callback = function(Value)
+        AuctionCfg["Auto Buy"] = Value
+    end
+})
+
+-- 3. Tab Ketiga: Performa & Misc
+local TabMisc = Window:MakeTab({
+    Name = "Performa & Misc",
+    Icon = "rbxassetid://6023426915",
+    PremiumOnly = false
+})
+
+TabMisc:AddToggle({
+    Name = "Low Graphics (Optimasi)",
+    Default = PerfCfg["Low Graphics"] or true,
+    Callback = function(Value)
+        PerfCfg["Low Graphics"] = Value
+        if Value then
             local lighting = game:GetService("Lighting")
             lighting.GlobalShadows = false
             lighting.FogEnd = 999999
         end
-    end)
-end)
+    end
+})
 
--- 2. Auto Harvest Engine (Menyisir folder _Gardens)
-if HarvestCfg["Auto Harvest"] then
-    task.spawn(function()
-        while task.wait(2) do
-            pcall(function()
-                local gardensFolder = Workspace:FindFirstChild("_Gardens")
-                if gardensFolder then
-                    -- Cari kebun milik player sendiri atau secara umum
-                    for _, plot in pairs(gardensFolder:GetChildren()) do
-                        -- Di dalam plot biasanya ada tanaman/crop
-                        for _, crop in pairs(plot:GetChildren()) do
-                            if crop:IsA("Model") or crop:IsA("BasePart") then
-                                -- Contoh aksi interaksi panen jika objek siap
-                            end
-                        end
-                    end
-                end
-            end)
+TabMisc:AddSlider({
+    Name = "WalkSpeed",
+    Min = 16,
+    Max = 100,
+    Default = 16,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "Speed",
+    Callback = function(Value)
+        local lp = game:GetService("Players").LocalPlayer
+        if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+            lp.Character.Humanoid.WalkSpeed = Value
         end
-    end)
-end
+    end
+})
 
--- 3. Auto Plant Engine
-if PlantCfg["Auto Plant"] then
-    task.spawn(function()
-        while task.wait(3) do
-            pcall(function()
-                local layout = PlantCfg["Layout"] or "compact"
-                local minSeed = PlantCfg["Minimum Seed"] or "Bamboo"
-                -- Logika menanam benih otomatis berdasarkan grid plot
-            end)
-        end
-    end)
-end
+-- Inisialisasi GUI Orion
+OrionLib:Init()
 
--- 4. Money & Plot Expansion Engine
-task.spawn(function()
-    task.spawn(function()
-        while task.wait(5) do
-            pcall(function()
-                local autoExpand = MoneyCfg["Auto Expand Plot"]
-                local maxExp = MoneyCfg["Max Expansions"] or 5
-                local expandOver = MoneyCfg["Expand If Over"] or 1500000
-                -- Logika otomatis memperluas plot jika uang mencukupi
-            end)
-        end
-    end)
-end)
+print("[DonnHub GUI] Antarmuka menu berhasil ditampilkan!")
 
--- 5. Auction Auto Buyer Engine (Memantau AuctionStand)
-if AuctionCfg["Auto Buy"] then
-    task.spawn(function()
-        local interval = AuctionCfg["Check Every"] or 0.2
-        while task.wait(interval) do
-            pcall(function()
-                local auctionStand = Workspace:FindFirstChild("AuctionStand")
-                local buyItems = AuctionCfg["Buy"] or {}
-                -- Logika membeli item dari lelang ketika harga turun sesuai target config
-            end)
-        end
-    end)
-end
-
--- 6. Misc WalkSpeed Handler
+-- ==========================================================
+-- BACKGROUND LOOPS (Mesin Utama yang Membaca Config / GUI)
+-- ==========================================================
 task.spawn(function()
     while task.wait(2) do
         pcall(function()
-            local walkSpeed = MiscCfg["Walk Speed"] or 0
-            if walkSpeed > 0 and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                LocalPlayer.Character.Humanoid.WalkSpeed = walkSpeed
+            -- Contoh eksekusi otomatis berdasarkan perubahan di GUI/Config
+            if HarvestCfg["Auto Harvest"] then
+                -- Proses panen aktif
+            end
+            if PlantCfg["Auto Plant"] then
+                -- Proses tanam aktif
             end
         end)
     end
 end)
-
-print("[DonnHub Engine] Mesin Auto-Farm terhubung ke struktur _Gardens & AuctionStand!")

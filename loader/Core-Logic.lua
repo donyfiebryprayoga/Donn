@@ -1,137 +1,83 @@
--- File: loader/Core-Logic.lua (Full GUI + Auto-Farm Engine)
-local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Orion/main/source'))()
-local Window = OrionLib:MakeWindow({Name = "DonnHub | Grow a Garden 2 Kaitun", HidePremium = false, SaveConfig = true, ConfigFolder = "DonnHubConfig"})
+-- File: loader/Core-Logic.lua (Custom Minimalist Dashboard GUI)
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local LocalPlayer = Players.LocalPlayer
 
-local Config = _G.GAGConfig or {}
-local HarvestCfg = Config["Harvest"] or {}
-local PlantCfg = Config["Planting"] or {}
-local MoneyCfg = Config["Money"] or {}
-local PerfCfg = Config["Performance"] or {}
-local AuctionCfg = Config["Auction"] or {}
-local MiscCfg = Config["Misc"] or {}
+-- Hapus GUI lama jika ada agar tidak menumpuk
+if CoreGui:FindFirstChild("DonnHubDashboard") then
+    CoreGui.DonnHubDashboard:Destroy()
+end
 
--- 1. Tab Utama: Harvest & Planting
-local TabMain = Window:MakeTab({
-    Name = "Farm & Plant",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
+-- 1. Buat ScreenGui Utama
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "DonnHubDashboard"
+ScreenGui.Parent = CoreGui
+ScreenGui.IgnoreGuiInset = true
 
-TabMain:AddToggle({
-    Name = "Auto Harvest",
-    Default = HarvestCfg["Auto Harvest"] or true,
-    Callback = function(Value)
-        HarvestCfg["Auto Harvest"] = Value
-    end
-})
+-- 2. Panel Kotak Tengah (Farming Dashboard)
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 420, 0, 240)
+MainFrame.Position = UDim2.new(0.5, -210, 0.5, -120)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+MainFrame.BackgroundTransparency = 0.2
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
 
-TabMain:AddSlider({
-    Name = "Sell Fruit At (%)",
-    Min = 10,
-    Max = 100,
-    Default = HarvestCfg["Sell At"] or 85,
-    Color = Color3.fromRGB(255,255,255),
-    Increment = 1,
-    ValueName = "%",
-    Callback = function(Value)
-        HarvestCfg["Sell At"] = Value
-    end
-})
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = MainFrame
 
-TabMain:AddToggle({
-    Name = "Auto Plant",
-    Default = PlantCfg["Auto Plant"] or true,
-    Callback = function(Value)
-        PlantCfg["Auto Plant"] = Value
-    end
-})
+-- Judul "FARMING"
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 35)
+Title.BackgroundTransparency = 1
+Title.Text = "FARMING"
+Title.TextColor3 = Color3.fromRGB(0, 255, 128)
+Title.TextSize = 18
+Title.Font = Enum.Font.SourceSansBold
+Title.Parent = MainFrame
 
-TabMain:AddDropdown({
-    Name = "Plant Layout",
-    Default = PlantCfg["Layout"] or "compact",
-    Options = {"compact", "spread", "grid"},
-    Callback = function(Value)
-        PlantCfg["Layout"] = Value
-    end
-})
+-- Label Informasi Statistik (Uptime, Sheckles, Planted, dll)
+local StatsLabel = Instance.new("TextLabel")
+StatsLabel.Size = UDim2.new(1, -20, 1, -50)
+StatsLabel.Position = UDim2.new(0, 10, 0, 40)
+StatsLabel.BackgroundTransparency = 1
+StatsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+StatsLabel.TextSize = 14
+StatsLabel.Font = Enum.Font.Code
+StatsLabel.TextXAlignment = Enum.TextXAlignment.Center
+StatsLabel.TextYAlignment = Enum.TextYAlignment.Top
+StatsLabel.Text = [[
+Uptime 00:58:09
+43.62M Sheckles
++5.13M (+5.29M/hr)
+Planted 151     Harvested 35.6K
+Pets 0     Sprinklers 22
+Event Seeds 0 taken / 0 missed (G 0 R 0 M 0)
+Weather Clear
+]]
+StatsLabel.Parent = MainFrame
 
--- 2. Tab Kedua: Money & Auction
-local TabMoney = Window:MakeTab({
-    Name = "Money & Auction",
-    Icon = "rbxassetid://6023426915",
-    PremiumOnly = false
-})
+-- Tombol HIDE GUI di Bawah
+local HideButton = Instance.new("TextButton")
+HideButton.Size = UDim2.new(0, 180, 0, 30)
+HideButton.Position = UDim2.new(0.5, -90, 1, -35)
+HideButton.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+HideButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+HideButton.TextSize = 14
+HideButton.Font = Enum.Font.SourceSansBold
+HideButton.Text = "HIDE GUI"
+HideButton.Parent = MainFrame
 
-TabMoney:AddToggle({
-    Name = "Auto Expand Plot",
-    Default = MoneyCfg["Auto Expand Plot"] or true,
-    Callback = function(Value)
-        MoneyCfg["Auto Expand Plot"] = Value
-    end
-})
+local BtnCorner = Instance.new("UICorner")
+BtnCorner.CornerRadius = UDim.new(0, 6)
+BtnCorner.Parent = HideButton
 
-TabMoney:AddToggle({
-    Name = "Auction Auto Buy",
-    Default = AuctionCfg["Auto Buy"] or true,
-    Callback = function(Value)
-        AuctionCfg["Auto Buy"] = Value
-    end
-})
-
--- 3. Tab Ketiga: Performa & Misc
-local TabMisc = Window:MakeTab({
-    Name = "Performa & Misc",
-    Icon = "rbxassetid://6023426915",
-    PremiumOnly = false
-})
-
-TabMisc:AddToggle({
-    Name = "Low Graphics (Optimasi)",
-    Default = PerfCfg["Low Graphics"] or true,
-    Callback = function(Value)
-        PerfCfg["Low Graphics"] = Value
-        if Value then
-            local lighting = game:GetService("Lighting")
-            lighting.GlobalShadows = false
-            lighting.FogEnd = 999999
-        end
-    end
-})
-
-TabMisc:AddSlider({
-    Name = "WalkSpeed",
-    Min = 16,
-    Max = 100,
-    Default = 16,
-    Color = Color3.fromRGB(255,255,255),
-    Increment = 1,
-    ValueName = "Speed",
-    Callback = function(Value)
-        local lp = game:GetService("Players").LocalPlayer
-        if lp.Character and lp.Character:FindFirstChild("Humanoid") then
-            lp.Character.Humanoid.WalkSpeed = Value
-        end
-    end
-})
-
--- Inisialisasi GUI Orion
-OrionLib:Init()
-
-print("[DonnHub GUI] Antarmuka menu berhasil ditampilkan!")
-
--- ==========================================================
--- BACKGROUND LOOPS (Mesin Utama yang Membaca Config / GUI)
--- ==========================================================
-task.spawn(function()
-    while task.wait(2) do
-        pcall(function()
-            -- Contoh eksekusi otomatis berdasarkan perubahan di GUI/Config
-            if HarvestCfg["Auto Harvest"] then
-                -- Proses panen aktif
-            end
-            if PlantCfg["Auto Plant"] then
-                -- Proses tanam aktif
-            end
-        end)
-    end
+-- Fungsi Toggle Hide/Show GUI
+local hidden = false
+HideButton.MouseButton1Click:Connect(function()
+    hidden = not hidden
+    MainFrame.Visible = not hidden
 end)
+
+print("[DonnHub] Custom Minimalist GUI Berhasil Dimuat!")

@@ -1,4 +1,4 @@
--- File: loader/Core-Logic.lua (Optimized Harvest & Sell Delays)
+-- File: loader/Core-Logic.lua (Ultimate Full-Edition + Toast Notification Kanan Bawah)
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
@@ -6,6 +6,7 @@ local VirtualUser       = game:GetService("VirtualUser")
 local Lighting          = game:GetService("Lighting")
 local Workspace         = game:GetService("Workspace")
 local CoreGui           = game:GetService("CoreGui")
+local TweenService      = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -165,7 +166,23 @@ local function getPlantPosition()
 	return part.Position + Vector3.new((math.random()-0.5)*2, part.Size.Y/2, (math.random()-0.5)*2)
 end
 
---// 4. Custom GUI 3-Column Construction
+local function myPlantModels()
+	local out = {}
+	local gardens = Workspace:FindFirstChild("Gardens")
+	if not gardens then return out end
+	local myId = LocalPlayer.UserId
+	for _, garden in ipairs(gardens:GetChildren()) do
+		local plants = garden:FindFirstChild("Plants")
+		if plants then
+			for _, plant in ipairs(plants:GetChildren()) do
+				if tonumber(plant:GetAttribute("UserId")) == myId then out[#out + 1] = plant end
+			end
+		end
+	end
+	return out
+end
+
+--// 4. Custom GUI & Toast Notification (Kanan Bawah)
 if CoreGui:FindFirstChild("DonnHubDashboard") then
 	CoreGui.DonnHubDashboard:Destroy()
 end
@@ -174,6 +191,50 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "DonnHubDashboard"
 ScreenGui.Parent = CoreGui
 ScreenGui.IgnoreGuiInset = true
+
+local ToastFrame = Instance.new("Frame")
+ToastFrame.Size = UDim2.new(0, 310, 0, 50)
+ToastFrame.Position = UDim2.new(1, 20, 1, -70)
+ToastFrame.BackgroundColor3 = Color3.fromRGB(15, 20, 18)
+ToastFrame.BorderSizePixel = 0
+ToastFrame.ZIndex = 20
+ToastFrame.Parent = ScreenGui
+Instance.new("UICorner", ToastFrame).CornerRadius = UDim.new(0, 8)
+local ToastStroke = Instance.new("UIStroke")
+ToastStroke.Color = Color3.fromRGB(0, 255, 130)
+ToastStroke.Thickness = 1.5
+ToastStroke.Parent = ToastFrame
+
+local ToastIcon = Instance.new("TextLabel")
+ToastIcon.Size = UDim2.new(0, 40, 1, 0)
+ToastIcon.BackgroundTransparency = 1
+ToastIcon.Text = "🌱"
+ToastIcon.TextSize = 20
+ToastIcon.ZIndex = 21
+ToastIcon.Parent = ToastFrame
+
+local ToastText = Instance.new("TextLabel")
+ToastText.Size = UDim2.new(1, -45, 1, 0)
+ToastText.Position = UDim2.new(0, 40, 0, 0)
+ToastText.BackgroundTransparency = 1
+ToastText.TextColor3 = Color3.fromRGB(240, 255, 245)
+ToastText.TextSize = 12
+ToastText.Font = Enum.Font.GothamBold
+ToastText.TextXAlignment = Enum.TextXAlignment.Left
+ToastText.Text = "DonnHub Loaded Successfully!\nConfig & Automation Engine Active."
+ToastText.ZIndex = 21
+ToastText.Parent = ToastFrame
+
+task.spawn(function()
+	local tweenIn = TweenService:Create(ToastFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(1, -330, 1, -70)})
+	tweenIn:Play()
+	tweenIn.Completed:Wait()
+	
+	task.wait(4)
+	
+	local tweenOut = TweenService:Create(ToastFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(1, 20, 1, -70)})
+	tweenOut:Play()
+end)
 
 local OpenButton = Instance.new("TextButton")
 OpenButton.Size = UDim2.new(0, 110, 0, 36)
@@ -244,7 +305,7 @@ CenterCol.Parent = MainFrame
 local TitleCenter = Instance.new("TextLabel")
 TitleCenter.Size = UDim2.new(1, 0, 0, 22)
 TitleCenter.BackgroundTransparency = 1
-TitleCenter.Text = "FARMING & CONFIG ENGINE"
+TitleCenter.Text = "FARMING & FULL CONFIG ENGINE"
 TitleCenter.TextColor3 = Color3.fromRGB(0, 255, 130)
 TitleCenter.TextSize = 15
 TitleCenter.Font = Enum.Font.GothamBold
@@ -405,7 +466,6 @@ pcall(function()
 	end
 end)
 
--- Performance Optimization
 task.spawn(function()
 	pcall(function()
 		if PerfCfg["FPS Cap"] and PerfCfg["FPS Cap"] > 0 and setfpscap then
@@ -418,7 +478,6 @@ task.spawn(function()
 	end)
 end)
 
--- Dynamic Stats & Real-Time Status Loop
 task.spawn(function()
 	while task.wait(1) do
 		pcall(function()
@@ -450,7 +509,7 @@ task.spawn(function()
 	end
 end)
 
--- 1. Harvest Loop (Diperlambat menjadi 1.5 detik agar tidak spam)
+-- 1. Harvest Loop
 task.spawn(function()
 	while task.wait(1.5) do
 		pcall(function()
@@ -470,7 +529,7 @@ task.spawn(function()
 							fire("Garden", "CollectFruit", e.plantId, e.fruitId)
 							harvestedCount = harvestedCount + 1
 							pushShovelLog("+ harvest " .. tostring(e.name))
-							task.wait(0.1) -- Jeda antar tanaman matang
+							task.wait(0.1)
 						end
 					end
 				else
@@ -481,7 +540,7 @@ task.spawn(function()
 	end
 end)
 
--- 2. Sell Loop (Diatur stabil mengikuti config Sell Every atau default 40 detik)
+-- 2. Sell Loop
 task.spawn(function()
 	while task.wait(HarvestCfg["Sell Every"] or 40) do
 		pcall(function()
@@ -658,4 +717,4 @@ task.spawn(function()
 	end
 end)
 
-print("[DonnHub] Optimized Harvest & Sell Speed Loaded Successfully!")
+print("[DonnHub] Script successfully loaded with Warning Toast Notification!")

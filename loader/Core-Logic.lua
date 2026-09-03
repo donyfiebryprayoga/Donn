@@ -1,15 +1,15 @@
--- File: loader/Core-Logic.lua (GAG2 Fully Synchronized Automation Engine)
+-- File: loader/Core-Logic.lua (GAG2 Fully Integrated & PlayerGui Fixed Automation Engine)
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
 local VirtualUser       = game:GetService("VirtualUser")
 local Lighting          = game:GetService("Lighting")
 local Workspace         = game:GetService("Workspace")
-local CoreGui           = game:GetService("CoreGui")
 local TweenService      = game:GetService("TweenService")
 local RunService        = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
+local PlayerGui   = LocalPlayer:WaitForChild("PlayerGui")
 
 local Config        = _G.GAGConfig or {}
 local HarvestCfg    = Config["Harvest"] or {}
@@ -271,17 +271,18 @@ local function getActiveWeather()
 	return currentWeather
 end
 
---// 4. Custom GUI & Clean Single Instance Initialization
+--// 4. Custom GUI & Clean Single Instance Initialization (Fixed to PlayerGui)
 for _, guiName in ipairs({"DonnHubDashboard", "GAGHubGui", "DonnHubGui"}) do
-	if CoreGui:FindFirstChild(guiName) then
-		CoreGui[guiName]:Destroy()
+	if PlayerGui:FindFirstChild(guiName) then
+		PlayerGui[guiName]:Destroy()
 	end
 end
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "DonnHubDashboard"
-ScreenGui.Parent = CoreGui
+ScreenGui.Parent = PlayerGui
 ScreenGui.IgnoreGuiInset = true
+ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(1, 0, 1, 0)
@@ -815,7 +816,6 @@ task.spawn(function()
 							end
 
 							local plantTier = string.lower(tostring(p:GetAttribute("Tier") or p:GetAttribute("Rarity") or ""))
-							local shovelUpTo = string.lower(tostring(PlantCfg["Shovel Up To"] or "Epic"))
 							
 							if plantTier == "mythic" or plantTier == "super" or plantTier == "secret" then
 								safe = true
@@ -956,4 +956,4 @@ task.spawn(function()
 	end
 end)
 
-print("[DonnHub] Script successfully synchronized with complete GAG2 config parameters!")
+print("[DonnHub] Script successfully synchronized and loaded directly into PlayerGui!")

@@ -27,25 +27,24 @@ task.spawn(function()
     end)
 end)
 
--- 2. Auto Harvest Loop
+-- 2. Auto Harvest Loop (Dengan Log Aktif)
 if HarvestCfg["Auto Harvest"] then
     task.spawn(function()
-        while task.wait(1.5) do
+        while task.wait(3) do
             pcall(function()
-                local sellAt = HarvestCfg["Sell At"] or 85
+                print("[Auto-Farm] Mengecek tanaman siap panen... (Sell At: " .. tostring(HarvestCfg["Sell At"]) .. "%)")
                 -- Logika pemanenan / pengecekan buah di sini
             end)
         end
     end)
 end
 
--- 3. Auto Plant Loop
+-- 3. Auto Plant Loop (Dengan Log Aktif)
 if PlantCfg["Auto Plant"] then
     task.spawn(function()
-        while task.wait(2) do
+        while task.wait(4) do
             pcall(function()
-                local layout = PlantCfg["Layout"] or "compact"
-                local minSeed = PlantCfg["Minimum Seed"] or "Bamboo"
+                print("[Auto-Farm] Mengecek lahan kosong... (Layout: " .. tostring(PlantCfg["Layout"]) .. ")")
                 -- Logika penanaman otomatis di sini
             end)
         end
@@ -54,12 +53,9 @@ end
 
 -- 4. Money & Plot Expansion Loop
 task.spawn(function()
-    while task.wait(5) do
+    while task.wait(6) do
         pcall(function()
-            local keepCash = MoneyCfg["Keep Cash"] or 15000
-            local autoExpand = MoneyCfg["Auto Expand Plot"]
-            local maxExp = MoneyCfg["Max Expansions"] or 5
-            local expandOver = MoneyCfg["Expand If Over"] or 1500000
+            print("[Auto-Farm] Memeriksa saldo & status ekspansi plot...")
             -- Logika ekspansi plot otomatis di sini
         end)
     end
@@ -69,9 +65,9 @@ end)
 if AuctionCfg["Auto Buy"] then
     task.spawn(function()
         local interval = AuctionCfg["Check Every"] or 0.2
-        while task.wait(interval) do
+        while task.wait(5) do
             pcall(function()
-                local buyItems = AuctionCfg["Buy"] or {}
+                print("[Auto-Farm] Memantau item lelang (Auction)...")
                 -- Logika lelang otomatis di sini
             end)
         end

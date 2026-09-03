@@ -1,15 +1,12 @@
--- File: loader/Core-Logic.lua (GAG2 Anti-Cheat Bypass GUI Engine)
+-- File: loader/Core-Logic.lua (GAG2 Force Independent Engine)
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
 local VirtualUser       = game:GetService("VirtualUser")
-local Lighting          = game:GetService("Lighting")
 local Workspace         = game:GetService("Workspace")
-local CoreGui           = game:GetService("CoreGui")
-local TweenService      = game:GetService("TweenService")
+local StarterGui        = game:GetService("StarterGui")
 
 local LocalPlayer = Players.LocalPlayer
-
 local Config        = _G.GAGConfig or {}
 local HarvestCfg    = Config["Harvest"] or {}
 local PlantCfg      = Config["Planting"] or {}
@@ -20,28 +17,28 @@ local MiscCfg       = Config["Misc"] or {}
 local GuildCfg      = Config["Guild"] or {}
 local AuctionCfg    = Config["Auction"] or {}
 local EggsCfg       = Config["Eggs"] or {}
-local PerfCfg       = Config["Performance"] or {}
 
-local purchasedLogs = {}
-local plantShovelLogs = {}
-local rareCounters = { Gold = 0, Rainbow = 0, Mega = 0 }
-local lastPlantedName = "None"
+local function notifyUser(title, text)
+	pcall(function()
+		StarterGui:SetCore("SendNotification", { Title = title, Text = text, Duration = 2 })
+	end)
+end
 
-print("[DonnHub] Starting Anti-Cheat Bypass Engine...")
+notifyUser("GAG2", "Forced Engine Initializing...")
 
---// Safe Networking Hook
+-- Paksa Ambil Network Langsung (Bypass Weather Error)
 local Net = nil
 task.spawn(function()
 	while not Net do
 		pcall(function()
-			local cm = ReplicatedStorage:WaitForChild("ClientModules", 3)
+			local cm = ReplicatedStorage:WaitForChild("ClientModules", 2)
 			if cm then
-				Net = require(cm:WaitForChild("Networking", 3))
+				Net = require(cm:WaitForChild("Networking", 2))
 			end
 		end)
-		if not Net then task.wait(1) end
+		if not Net then task.wait(0.5) end
 	end
-	print("[DonnHub] Network connected safely!")
+	notifyUser("GAG2", "Network Connected Successfully!")
 end)
 
 local function fire(category, action, ...)
@@ -113,21 +110,6 @@ local function moveToGarden()
 			end
 		end
 	end)
-end
-
-local function hasItemInInventory(itemName)
-	local function scan(container)
-		if not container then return false end
-		for _, item in ipairs(container:GetChildren()) do
-			if item:IsA("Tool") and (string.lower(item.Name) == string.lower(itemName) or item:GetAttribute("EggName") == itemName) then
-				return true
-			end
-		end
-		return false
-	end
-	if scan(LocalPlayer:FindFirstChild("Backpack")) then return true end
-	if scan(LocalPlayer.Character) then return true end
-	return false
 end
 
 local function scanCollectibleDetailed()
@@ -216,7 +198,6 @@ local function isSeedAllowed(seedName, toolObj)
 		if EventSeedCfg["Only Rainbow"] and not isRainbow then return false end
 		if EventSeedCfg["Only Mega"] and not isMega then return false end
 	end
-
 	local dontPlant = PlantCfg["Don't Plant"] or {}
 	for _, dp in ipairs(dontPlant) do
 		if string.lower(tostring(seedName)) == string.lower(tostring(dp)) then return false end
@@ -224,77 +205,7 @@ local function isSeedAllowed(seedName, toolObj)
 	return true
 end
 
---// GUI Builder Menggunakan gethui() agar kebal blokir game
-local parentUI = nil
-pcall(function()
-	if gethui then parentUI = gethui()
-	else parentUI = CoreGui end
-end)
-if not parentUI then parentUI = LocalPlayer:WaitForChild("PlayerGui") end
-
-for _, guiName in ipairs({"DonnHubDashboard", "GAGHubGui", "DonnHubGui"}) do
-	if parentUI:FindFirstChild(guiName) then parentUI[guiName]:Destroy() end
-end
-
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "DonnHubDashboard"
-ScreenGui.Parent = parentUI
-ScreenGui.IgnoreGuiInset = true
-ScreenGui.ResetOnSpawn = false
-
-local Container = Instance.new("Frame")
-Container.Size = UDim2.new(0, 780, 0, 480)
-Container.Position = UDim2.new(0.5, -390, 0.5, -240)
-Container.BackgroundColor3 = Color3.fromRGB(14, 18, 16)
-Container.BackgroundTransparency = 0.05
-Container.BorderSizePixel = 0
-Container.ZIndex = 3
-Container.Parent = ScreenGui
-Instance.new("UICorner", Container).CornerRadius = UDim.new(0, 12)
-local ContainerStroke = Instance.new("UIStroke")
-ContainerStroke.Color = Color3.fromRGB(0, 255, 130)
-ContainerStroke.Thickness = 1.5
-ContainerStroke.Parent = Container
-
--- Title & Status di GUI
-local TitleCenter = Instance.new("TextLabel")
-TitleCenter.Size = UDim2.new(1, 0, 0, 40)
-TitleCenter.Position = UDim2.new(0, 0, 0, 10)
-TitleCenter.BackgroundTransparency = 1
-TitleCenter.Text = "DONNHUB GAG2 ENGINE (ACTIVE)"
-TitleCenter.TextColor3 = Color3.fromRGB(0, 255, 130)
-TitleCenter.TextSize = 18
-TitleCenter.Font = Enum.Font.GothamBold
-TitleCenter.Parent = Container
-
-local StatsContent = Instance.new("TextLabel")
-StatsContent.Size = UDim2.new(1, -40, 0, 150)
-StatsContent.Position = UDim2.new(0, 20, 0, 60)
-StatsContent.BackgroundTransparency = 1
-StatsContent.TextColor3 = Color3.fromRGB(230, 245, 240)
-StatsContent.TextSize = 14
-StatsContent.Font = Enum.Font.GothamBold
-StatsContent.TextXAlignment = Enum.TextXAlignment.Center
-StatsContent.TextYAlignment = Enum.TextYAlignment.Top
-StatsContent.Text = "Status: Bot is running smoothly in background...\nCheck F9 for raw logs."
-StatsContent.Parent = Container
-
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Size = UDim2.new(0, 150, 0, 35)
-ToggleButton.Position = UDim2.new(0.5, -75, 1, -50)
-ToggleButton.BackgroundColor3 = Color3.fromRGB(15, 22, 18)
-ToggleButton.TextColor3 = Color3.fromRGB(0, 255, 150)
-ToggleButton.TextSize = 12
-ToggleButton.Font = Enum.Font.GothamBold
-ToggleButton.Text = "🌱 HIDE / OPEN"
-ToggleButton.Parent = Container
-Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 6)
-
-ToggleButton.MouseButton1Click:Connect(function()
-	Container.Visible = not Container.Visible
-end)
-
---// Loops Otomatisasi Utama
+-- Loop Otomatisasi Utama
 task.spawn(function()
 	while task.wait(3) do moveToGarden() end
 end)
@@ -378,7 +289,6 @@ task.spawn(function()
 				for _, tool in ipairs(getToolsWithAttribute("SeedTool")) do
 					local seedName = tool:GetAttribute("SeedTool") or "Seed"
 					if isSeedAllowed(seedName, tool) then
-						lastPlantedName = tostring(seedName)
 						local pos = getPlantPosition()
 						local _, _, hum = getCharacter()
 						if pos and hum then
@@ -394,4 +304,13 @@ task.spawn(function()
 	end
 end)
 
-print("[DonnHub] GUI Engine loaded with gethui bypass!")
+task.spawn(function()
+	local ok, idle = pcall(function() return LocalPlayer.Idled end)
+	if ok and idle then
+		idle:Connect(function()
+			pcall(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
+		end)
+	end
+end)
+
+print("[DonnHub] Forced Engine active despite game errors!")

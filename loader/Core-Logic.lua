@@ -1,15 +1,14 @@
--- File: loader/Core-Logic.lua (GAG2 Fully Integrated & PlayerGui Fixed Automation Engine)
+-- File: loader/Core-Logic.lua (GAG2 Safe Error-Resilient Engine)
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
 local VirtualUser       = game:GetService("VirtualUser")
 local Lighting          = game:GetService("Lighting")
 local Workspace         = game:GetService("Workspace")
+local CoreGui           = game:GetService("CoreGui")
 local TweenService      = game:GetService("TweenService")
-local RunService        = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
-local PlayerGui   = LocalPlayer:WaitForChild("PlayerGui")
 
 local Config        = _G.GAGConfig or {}
 local HarvestCfg    = Config["Harvest"] or {}
@@ -271,16 +270,27 @@ local function getActiveWeather()
 	return currentWeather
 end
 
---// 4. Custom GUI & Clean Single Instance Initialization (Fixed to PlayerGui)
+--// 4. Bulletproof GUI Setup (Safe Container Generation)
+local parentUI = CoreGui
+pcall(function()
+	if gethui then
+		parentUI = gethui()
+	elseif syn and syn.protect_gui then
+		parentUI = CoreGui
+	else
+		parentUI = LocalPlayer:WaitForChild("PlayerGui")
+	end
+end)
+
 for _, guiName in ipairs({"DonnHubDashboard", "GAGHubGui", "DonnHubGui"}) do
-	if PlayerGui:FindFirstChild(guiName) then
-		PlayerGui[guiName]:Destroy()
+	if parentUI:FindFirstChild(guiName) then
+		parentUI[guiName]:Destroy()
 	end
 end
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "DonnHubDashboard"
-ScreenGui.Parent = PlayerGui
+ScreenGui.Parent = parentUI
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.ResetOnSpawn = false
 
@@ -528,16 +538,10 @@ ToggleButton.MouseButton1Click:Connect(function()
 		Container.Visible = false
 		MainFrame.BackgroundTransparency = 1
 		ToggleButton.Text = "🌱 OPEN GUI"
-		if MiscCfg["Hide Game UI"] then
-			game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.All, true)
-		end
 	else
 		Container.Visible = true
 		MainFrame.BackgroundTransparency = 0.15
 		ToggleButton.Text = "🌱 HIDE GUI"
-		if MiscCfg["Hide Game UI"] then
-			game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.All, false)
-		end
 	end
 end)
 
@@ -606,16 +610,13 @@ end)
 task.spawn(function()
 	while task.wait(3) do
 		pcall(function()
-			-- FPS Cap
 			if PerfCfg["FPS Cap"] and PerfCfg["FPS Cap"] > 0 and setfpscap then
 				setfpscap(PerfCfg["FPS Cap"])
 			end
-			-- Low Graphics & Visual Optimizations
 			if PerfCfg["Low Graphics"] then
 				Lighting.GlobalShadows = false
 				Lighting.FogEnd = 999999
 			end
-			-- Walk Speed Override
 			local hum = select(3, getCharacter())
 			if hum and MiscCfg["Walk Speed"] and MiscCfg["Walk Speed"] > 0 then
 				hum.WalkSpeed = MiscCfg["Walk Speed"]
@@ -624,7 +625,7 @@ task.spawn(function()
 	end
 end)
 
--- Auto Return to Garden / Teleport loop
+-- Auto Return to Garden Loop
 task.spawn(function()
 	while task.wait(3) do
 		pcall(function()
@@ -674,7 +675,7 @@ task.spawn(function()
 	end
 end)
 
--- 1. Harvest & Reliable Selling Loop (Fixing Sell At, Sell Every, and Emergency Full Inventory)
+-- 1. Harvest & Reliable Selling Loop
 task.spawn(function()
 	while task.wait(1.0) do
 		pcall(function()
@@ -729,7 +730,7 @@ task.spawn(function()
 	end
 end)
 
--- 3. Buy Seeds Loop (Supports Keep Seeds Sniper & Mail Stocking)
+-- 3. Buy Seeds Loop
 task.spawn(function()
 	while task.wait(3) do
 		pcall(function()
@@ -783,7 +784,7 @@ task.spawn(function()
 	end
 end)
 
--- 5. Plant & Fixed Shovel / Over Limit Replace Loop
+-- 5. Plant & Shovel Loop
 task.spawn(function()
 	while task.wait(1.2) do
 		pcall(function()
@@ -887,7 +888,7 @@ task.spawn(function()
 	end
 end)
 
--- 6. Open Eggs & Auto Pets Loop
+-- 6. Open Eggs Loop
 task.spawn(function()
 	while task.wait(4) do
 		pcall(function()
@@ -908,7 +909,7 @@ task.spawn(function()
 	end
 end)
 
--- 7. Auctioneer Auto Buy Loop (Silent Handler)
+-- 7. Auctioneer Auto Buy Loop
 task.spawn(function()
 	while task.wait(AuctionCfg["Check Every"] or 0.2) do
 		pcall(function()
@@ -929,7 +930,7 @@ task.spawn(function()
 	end
 end)
 
--- 8. Mailbox Auto Claim & Guild Auto Accept
+-- 8. Mailbox & Guild Auto Loop
 task.spawn(function()
 	while task.wait(30) do
 		pcall(function()
@@ -956,4 +957,4 @@ task.spawn(function()
 	end
 end)
 
-print("[DonnHub] Script successfully synchronized and loaded directly into PlayerGui!")
+print("[DonnHub] Script successfully loaded with error protection!")

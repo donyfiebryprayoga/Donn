@@ -6,13 +6,13 @@ local Success, Games = pcall(function()
 end)
 
 if not Success or type(Games) ~= "table" then 
-    warn("Gagal memuat list game kaitun!")
+    warn("Gagal memuat list game!")
     return 
 end
 
 local URL = Games[CurrentPlaceId]
 if not URL then 
-    warn("Game tidak didukung di DonnHub Kaitun.")
+    warn("Game tidak didukung di DonnHub.")
     return 
 end
 

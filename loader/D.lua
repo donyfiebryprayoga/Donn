@@ -1,27 +1,15 @@
-local function loadScriptFromURL(url)
-    local success, result = pcall(function()
-        return game:HttpGet(url)
-    end)
+-- Salin dan tempel kode ini ke dalam file D.lua di GitHub kamu
+
+local MyGameScript = {}
+
+function MyGameScript.Init()
+    -- Masukkan semua logic game, setup service, UI, atau fungsi kamu di sini
+    print("Logic game dan service berhasil dimuat dari GitHub!")
     
-    if success and result then
-        local loadSuccess, scriptFunction = pcall(function()
-            return loadstring(result)
-        end)
-        
-        if loadSuccess and scriptFunction then
-            local runSuccess, err = pcall(scriptFunction)
-            if not runSuccess then
-                warn("Error saat menjalankan script: " .. tostring(err))
-            end
-        else
-            warn("Gagal melakukan parse/loadstring pada script.")
-        end
-    else
-        warn("Gagal mendownload script dari URL: " .. tostring(url))
-    end
+    -- Contoh penggunaan service standar Roblox:
+    local Players = game:GetService("Players")
+    local localPlayer = Players.LocalPlayer
+    print("Berjalan sebagai player: " .. tostring(localPlayer and localPlayer.Name))
 end
 
--- Coba tambahkan task.spawn atau pcall tambahan di pemanggilan utama untuk menghindari freeze UI saat init
-task.spawn(function()
-    loadScriptFromURL("https://raw.githubusercontent.com/donyfiebryprayoga/Donn/refs/heads/main/loader/D.lua")
-end)
+return MyGameScript

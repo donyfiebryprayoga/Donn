@@ -33,7 +33,7 @@ textLabel.Text = "Memuat skrip..."
 textLabel.Parent = frame
 
 -- 2. Proses Mengunduh Skrip Eksternal
-local scriptUrl = "https://raw.githubusercontent.com/username/repository/main/script.lua"
+local scriptUrl = "https://raw.githubusercontent.com/donyfiebryprayoga/Donn/refs/heads/main/loader/Donnhub.lua"
 
 local success, result = pcall(function()
     return game:HttpGet(scriptUrl)

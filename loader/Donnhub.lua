@@ -1,58 +1,55 @@
--- UI Loader di pojok kanan bawah dengan penanganan error yang jelas
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "ScriptLoaderGui"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = game:GetService("CoreGui")
+-- Pastikan UI loader sebelumnya tidak bentrok
+local CoreGui = game:GetService("CoreGui")
+if CoreGui:FindFirstChild("DonnHubGui") then
+    CoreGui.DonnHubGui:Destroy()
+end
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 260, 0, 70)
-frame.Position = UDim2.new(1, -280, 1, -90)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-frame.BorderSizePixel = 0
-frame.Parent = screenGui
+-- Membuat Main UI Donn Hub
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "DonnHubGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = CoreGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 450, 0, 300)
+mainFrame.Position = UDim2.new(0.5, -225, 0.5, -150)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true -- Membuat UI bisa digeser
+mainFrame.Parent = screenGui
 
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 10)
-corner.Parent = frame
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = mainFrame
 
-local textLabel = Instance.new("TextLabel")
-textLabel.Size = UDim2.new(1, 0, 1, 0)
-textLabel.BackgroundTransparency = 1
-textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-textLabel.TextSize = 16
-textLabel.Font = Enum.Font.GothamBold
-textLabel.Text = "Memuat skrip..."
-textLabel.Parent = frame
+-- Judul Hub
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 40)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Donn Hub - Main Script"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextSize = 18
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.Parent = mainFrame
 
-local scriptUrl = "https://raw.githubusercontent.com/donyfiebryprayoga/Donn/refs/heads/main/loader/Donnhub.lua"
+-- Tombol Close
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -35, 0, 5)
+closeButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextSize = 14
+closeButton.Font = Enum.Font.GothamBold
+closeButton.Parent = mainFrame
 
--- Mengunduh skrip dengan pengaman pcall
-local success, result = pcall(function()
-    return game:HttpGet(scriptUrl)
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 6)
+closeCorner.Parent = closeButton
+
+closeButton.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
 end)
 
-if success and result and result ~= "" then
-    -- Coba kompilasi skrip yang diunduh
-    local loadSuccess, scriptFunc = pcall(function()
-        return loadstring(result)
-    end)
-    
-    if loadSuccess and type(scriptFunc) == "function" then
-        textLabel.Text = "Sukses! Menjalankan skrip..."
-        textLabel.TextColor3 = Color3.fromRGB(46, 204, 113) -- Hijau
-        
-        -- Jalankan skrip utama
-        task.spawn(scriptFunc)
-        
-        task.wait(2)
-        screenGui:Destroy()
-    else
-        textLabel.Text = "Gagal Kompilasi!"
-        textLabel.TextColor3 = Color3.fromRGB(231, 76, 60) -- Merah
-        warn("Error Kompilasi: " .. tostring(scriptFunc))
-    end
-else
-    textLabel.Text = "Gagal Mengunduh!"
-    textLabel.TextColor3 = Color3.fromRGB(231, 76, 60) -- Merah
-    warn("Error HTTP/URL Kosong: " .. tostring(result))
-end
+print("Donn Hub berhasil dimuat dan dijalankan!")

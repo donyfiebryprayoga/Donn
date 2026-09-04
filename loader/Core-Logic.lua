@@ -1,12 +1,14 @@
--- File: loader/Core-Logic.lua (GAG2 Force Independent Engine)
+-- File: GAG2_Final_Engine.lua
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
 local VirtualUser       = game:GetService("VirtualUser")
+local Lighting          = game:GetService("Lighting")
 local Workspace         = game:GetService("Workspace")
 local StarterGui        = game:GetService("StarterGui")
 
 local LocalPlayer = Players.LocalPlayer
+
 local Config        = _G.GAGConfig or {}
 local HarvestCfg    = Config["Harvest"] or {}
 local PlantCfg      = Config["Planting"] or {}
@@ -17,38 +19,60 @@ local MiscCfg       = Config["Misc"] or {}
 local GuildCfg      = Config["Guild"] or {}
 local AuctionCfg    = Config["Auction"] or {}
 local EggsCfg       = Config["Eggs"] or {}
+local PerfCfg       = Config["Performance"] or {}
 
+-- Notifikasi sistem agar Anda tahu skrip sukses aktif
 local function notifyUser(title, text)
 	pcall(function()
-		StarterGui:SetCore("SendNotification", { Title = title, Text = text, Duration = 2 })
+		StarterGui:SetCore("SendNotification", {
+			Title = title,
+			Text = text,
+			Duration = 3
+		})
 	end)
 end
 
-notifyUser("GAG2", "Forced Engine Initializing...")
+notifyUser("DonnHub GAG2", "Engine started successfully!")
+print("[DonnHub] Engine initialized.")
 
--- Paksa Ambil Network Langsung (Bypass Weather Error)
+--// Safe Networking Hook (Menunggu ClientModules siap tanpa crash)
 local Net = nil
 task.spawn(function()
-	while not Net do
+	local attempts = 0
+	while not Net and attempts < 30 do
 		pcall(function()
-			local cm = ReplicatedStorage:WaitForChild("ClientModules", 2)
+			local cm = ReplicatedStorage:WaitForChild("ClientModules", 3)
 			if cm then
-				Net = require(cm:WaitForChild("Networking", 2))
+				local netMod = cm:WaitForChild("Networking", 3)
+				if netMod then
+					Net = require(netMod)
+				end
 			end
 		end)
-		if not Net then task.wait(0.5) end
+		if not Net then
+			attempts = attempts + 1
+			task.wait(1)
+		end
 	end
-	notifyUser("GAG2", "Network Connected Successfully!")
+	if Net then
+		notifyUser("DonnHub GAG2", "Network Connected!")
+		print("[DonnHub] Networking module connected!")
+	else
+		notifyUser("DonnHub GAG2", "Network Warning: Fallback Mode")
+		warn("[DonnHub] Networking module timed out, running fallback mode.")
+	end
 end)
 
 local function fire(category, action, ...)
 	if not Net then return end
 	local ok, res = pcall(function()
-		if type(Net) == "table" and Net[category] then
-			if type(Net[category].Fire) == "function" then
+		if type(Net) == "table" then
+			if Net[category] and type(Net[category].Fire) == "function" then
 				return Net[category]:Fire(action, ...)
-			elseif type(Net[category][action]) == "function" then
+			elseif Net[category] and type(Net[category][action]) == "function" then
 				return Net[category][action](...)
+			elseif Net[category] and type(Net[category][action]) == "table" and type(Net[category][action].Fire) == "function" then
+				return Net[category][action]:Fire(...)
 			end
 		end
 	end)
@@ -57,21 +81,27 @@ end
 
 local function invoke(path, ...)
 	if not Net then return end
-	local n = Net
-	pcall(function()
-		if type(path) == "table" then
-			for _, k in ipairs(path) do n = n and n[k] end
-		else
-			n = Net[path]
+	local n
+	if type(path) == "table" then
+		n = Net
+		for _, k in ipairs(path) do 
+			n = n and n[k] 
 		end
-	end)
+	else 
+		n = Net and Net[path] 
+	end
+	
 	if n then
-		local ok, res = pcall(function()
-			if type(n.Invoke) == "function" then return n:Invoke(...)
-			elseif type(n.Fire) == "function" then return n:Fire(...)
-			elseif type(n) == "function" then return n(...) end
-		end)
-		if ok then return res end
+		if type(n.Fire) == "function" then
+			local ok, res = pcall(function() return n:Fire(...) end)
+			if ok then return res end
+		elseif type(n.Invoke) == "function" then
+			local ok, res = pcall(function() return n:Invoke(...) end)
+			if ok then return res end
+		elseif type(n) == "function" then
+			local ok, res = pcall(function() return n(...) end)
+			if ok then return res end
+		end
 	end
 	return nil
 end
@@ -90,8 +120,11 @@ local function getPlayerPlot()
 	local gardens = Workspace:FindFirstChild("Gardens")
 	if not gardens then return nil end
 	local myId = LocalPlayer.UserId
+	
 	for _, plot in ipairs(gardens:GetChildren()) do
-		if tonumber(plot:GetAttribute("UserId")) == myId then return plot end
+		if tonumber(plot:GetAttribute("UserId")) == myId then
+			return plot
+		end
 	end
 	return gardens:GetChildren()[1]
 end
@@ -101,7 +134,7 @@ local function moveToGarden()
 		local _, hrp, _ = getCharacter()
 		local plot = getPlayerPlot()
 		if hrp and plot then
-			local targetPart = plot:FindFirstChild("Base") or plot:FindFirstChildOfClass("BasePart")
+			local targetPart = plot:FindFirstChild("Base") or plot:FindFirstChild("PlotBase") or plot:FindFirstChildOfClass("BasePart")
 			if targetPart then
 				local destPos = targetPart.Position + Vector3.new(0, 4, 0)
 				if (hrp.Position - destPos).Magnitude > 25 then
@@ -198,6 +231,7 @@ local function isSeedAllowed(seedName, toolObj)
 		if EventSeedCfg["Only Rainbow"] and not isRainbow then return false end
 		if EventSeedCfg["Only Mega"] and not isMega then return false end
 	end
+
 	local dontPlant = PlantCfg["Don't Plant"] or {}
 	for _, dp in ipairs(dontPlant) do
 		if string.lower(tostring(seedName)) == string.lower(tostring(dp)) then return false end
@@ -205,7 +239,7 @@ local function isSeedAllowed(seedName, toolObj)
 	return true
 end
 
--- Loop Otomatisasi Utama
+--// Background Loop Otomatisasi Utama
 task.spawn(function()
 	while task.wait(3) do moveToGarden() end
 end)
@@ -313,4 +347,4 @@ task.spawn(function()
 	end
 end)
 
-print("[DonnHub] Forced Engine active despite game errors!")
+print("[DonnHub] Full background automation active!")

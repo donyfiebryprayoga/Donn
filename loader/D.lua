@@ -23,5 +23,5 @@ end
 
 -- Coba tambahkan task.spawn atau pcall tambahan di pemanggilan utama untuk menghindari freeze UI saat init
 task.spawn(function()
-    loadScriptFromURL("https://raw.githubusercontent.com/donyfiebryprayoga/Donn/refs/heads/main/loader/D")
+    loadScriptFromURL("https://raw.githubusercontent.com/donyfiebryprayoga/Donn/refs/heads/main/loader/D.lua")
 end)

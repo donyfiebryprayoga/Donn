@@ -1,0 +1,27 @@
+-- Fungsi untuk mendownload dan menjalankan script dari URL dengan aman
+local function loadScriptFromURL(url)
+    local success, result = pcall(function()
+        return game:HttpGet(url)
+    end)
+    
+    if success and result then
+        local loadSuccess, scriptFunction = pcall(function()
+            return loadstring(result)
+        end)
+        
+        if loadSuccess and scriptFunction then
+            -- Jalankan script
+            local runSuccess, err = pcall(scriptFunction)
+            if not runSuccess then
+                warn("Error saat menjalankan script: " .. tostring(err))
+            end
+        else
+            warn("Gagal melakukan parse/loadstring pada script.")
+        end
+    else
+        warn("Gagal mendownload script dari URL: " .. tostring(url))
+    end
+end
+
+-- Contoh penggunaan:
+-- loadScriptFromURL("LINK_RAW_GITHUB_KAMU_DISINI")

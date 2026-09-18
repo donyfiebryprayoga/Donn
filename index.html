@@ -26,62 +26,50 @@
 <body>
 
 <div class="container">
-    <!-- FORM TERPADU UNTUK DIKIRIM KE GOOGLE APPS SCRIPT -->
-    <form id="authForm" method="POST" target="hidden_iframe" action="MASUKKAN_URL_WEB_APP_ANDA_DISINI">
-        
-        <!-- FORM LOGIN -->
-        <div id="loginForm">
-            <h2>Login TOKO DONYGK</h2>
-            <div class="form-group">
-                <label>Username</label>
-                <input type="text" name="username" id="loginUsername" placeholder="Masukkan username">
-            </div>
-            <div class="form-group">
-                <label>Password</label>
-                <input type="password" name="password" id="loginPassword" placeholder="Masukkan password">
-            </div>
-            <input type="hidden" name="action" id="loginAction" value="login">
-            <button type="button" onclick="kirimData('login')">Masuk</button>
-            <div class="switch">Belum punya akun? <a onclick="toggleForm('register')">Daftar di sini</a></div>
+    <!-- FORM LOGIN -->
+    <div id="loginForm">
+        <h2>Login TOKO DONYGK</h2>
+        <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="loginUsername" placeholder="Masukkan username">
         </div>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="loginPassword" placeholder="Masukkan password">
+        </div>
+        <button onclick="prosesLogin()">Masuk</button>
+        <div class="switch">Belum punya akun? <a onclick="toggleForm('register')">Daftar di sini</a></div>
+    </div>
 
-        <!-- FORM REGISTER -->
-        <div id="registerForm" class="hidden">
-            <h2>Daftar Akun Baru</h2>
-            <div class="form-group">
-                <label>Username</label>
-                <input type="text" name="username" id="regUsername" placeholder="Buat username unik">
-            </div>
-            <div class="form-group">
-                <label>Email</label>
-                <input type="email" name="email" id="regEmail" placeholder="email@domain.com">
-            </div>
-            <div class="form-group">
-                <label>Password</label>
-                <input type="password" name="password" id="regPassword" placeholder="Buat password aman">
-            </div>
-            <div class="form-group">
-                <label>Keterangan</label>
-                <input type="text" name="keterangan" id="regKeterangan" value="Member Aktif">
-            </div>
-            <input type="hidden" name="action" id="regAction" value="register">
-            <button type="button" onclick="kirimData('register')">Daftar Sekarang</button>
-            <div class="switch">Sudah punya akun? <a onclick="toggleForm('login')">Login di sini</a></div>
+    <!-- FORM REGISTER -->
+    <div id="registerForm" class="hidden">
+        <h2>Daftar Akun Baru</h2>
+        <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="regUsername" placeholder="Buat username unik">
         </div>
-    </form>
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="regEmail" placeholder="email@domain.com">
+        </div>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="regPassword" placeholder="Buat password aman">
+        </div>
+        <div class="form-group">
+            <label>Keterangan</label>
+            <input type="text" id="regKeterangan" value="Member Aktif">
+        </div>
+        <button onclick="prosesRegister()">Daftar Sekarang</button>
+        <div class="switch">Sudah punya akun? <a onclick="toggleForm('login')">Login di sini</a></div>
+    </div>
 
     <div id="message" class="msg"></div>
 </div>
 
-<!-- IFRAME TERSEMBUNYI AGAR TIDAK ADA RELOAD HALAMAN & BEBAS CORS -->
-<iframe name="hidden_iframe" id="hidden_iframe" style="display:none;" onload="handleResponse()"></iframe>
-
 <script>
     // URL Web App Anda
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx8AH4OkKoopyWyBTUVrMzxj8JHyCeEJWxVtdr1qAfcxHUfINmNR4_WmiwSW3bQVMVn/exec";
-    document.getElementById('authForm').action = WEB_APP_URL;
-
-    let currentAction = "";
 
     function toggleForm(type) {
         document.getElementById('message').innerText = "";
@@ -94,50 +82,70 @@
         }
     }
 
-    function kirimData(type) {
-        currentAction = type;
+    async function prosesRegister() {
+        let username = document.getElementById('regUsername').value;
+        let email = document.getElementById('regEmail').value;
+        let password = document.getElementById('regPassword').value;
+        let keterangan = document.getElementById('regKeterangan').value;
         let msg = document.getElementById('message');
-        
-        if (type === 'register') {
-            let u = document.getElementById('regUsername').value;
-            let e = document.getElementById('regEmail').value;
-            let p = document.getElementById('regPassword').value;
-            if(!u || !e || !p) {
-                msg.className = "msg error";
-                msg.innerText = "Semua kolom wajib diisi!";
-                return;
-            }
-            msg.className = "msg";
-            msg.innerText = "Memproses pendaftaran...";
-        } else {
-            let u = document.getElementById('loginUsername').value;
-            let p = document.getElementById('loginPassword').value;
-            if(!u || !p) {
-                msg.className = "msg error";
-                msg.innerText = "Username dan password harus diisi!";
-                return;
-            }
-            msg.className = "msg";
-            msg.innerText = "Memeriksa data...";
+
+        if(!username || !email || !password) {
+            msg.className = "msg error";
+            msg.innerText = "Semua kolom wajib diisi!";
+            return;
         }
 
-        // Kirim form secara langsung ke iframe
-        document.getElementById('authForm').submit();
+        msg.className = "msg";
+        msg.innerText = "Memproses pendaftaran...";
 
-        // Berikan feedback sukses sementara setelah tombol ditekan
-        setTimeout(() => {
-            msg.className = "msg success";
-            msg.innerText = type === 'register' ? "Data berhasil dikirim! Cek Spreadsheet Anda." : "Permintaan login dikirim!";
-        }, 1500);
+        try {
+            let response = await fetch(WEB_APP_URL, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({ action: "register", username, email, password, keterangan })
+            });
+            let result = await response.json();
+            
+            msg.className = "msg " + (result.status === "success" ? "success" : "error");
+            msg.innerText = result.message;
+            if(result.status === "success") {
+                setTimeout(() => toggleForm('login'), 2000);
+            }
+        } catch (error) {
+            msg.className = "msg error";
+            msg.innerText = "Gagal terhubung ke server!";
+            console.error(error);
+        }
     }
 
-    function handleResponse() {
-        // Fungsi pemicu saat iframe selesai menerima respons dari backend
+    async function prosesLogin() {
+        let username = document.getElementById('loginUsername').value;
+        let password = document.getElementById('loginPassword').value;
         let msg = document.getElementById('message');
-        if (currentAction === 'register' && msg.innerText.includes("Memproses")) {
-            msg.className = "msg success";
-            msg.innerText = "Registrasi berhasil dicatat!";
-            setTimeout(() => toggleForm('login'), 2000);
+
+        if(!username || !password) {
+            msg.className = "msg error";
+            msg.innerText = "Username dan password harus diisi!";
+            return;
+        }
+
+        msg.className = "msg";
+        msg.innerText = "Memeriksa data...";
+
+        try {
+            let response = await fetch(WEB_APP_URL, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({ action: "login", username, password })
+            });
+            let result = await response.json();
+            
+            msg.className = "msg " + (result.status === "success" ? "success" : "error");
+            msg.innerText = result.message + (result.keterangan ? " (" + result.keterangan + ")" : "" );
+        } catch (error) {
+            msg.className = "msg error";
+            msg.innerText = "Gagal terhubung ke server!";
+            console.error(error);
         }
     }
 </script>

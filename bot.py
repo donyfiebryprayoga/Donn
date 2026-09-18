@@ -11,13 +11,12 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Mengambil token dan Gist ID secara aman dari Environment Variables Render
+# Mengambil kredensial secara aman dari Environment Variables Cloud Hosting
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GIST_ID = os.getenv("GIST_ID")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ROLE_NAME = "Premium"  
-SCRIPT_URL = "https://raw.githubusercontent.com/donyfiebryprayoga/Donn/refs/heads/main/loader/Donnhub.lua"
-# ====================================================================
+ROLE_NAME = "Premium"  # Nama role otomatis untuk pembeli
+SCRIPT_URL = "https://pastebin.com/raw/contoh-script" # Ganti dengan link script Lua kamu
 
 def generate_key_string():
     chars = string.ascii_uppercase + string.digits
@@ -56,7 +55,7 @@ def save_to_github(key, days):
         return update_res.status_code == 200
     return False
 
-# Tugas otomatis menghapus key expired setiap 24 jam
+# Tugas otomatis menghapus key kedaluwarsa setiap 24 jam
 @tasks.loop(hours=24)
 async def auto_cleanup_expired_keys():
     url = f"https://api.github.com/gists/{GIST_ID}"
@@ -96,7 +95,7 @@ async def on_ready():
     print(f"Bot {bot.user} online dan siap mengelola TOKO DONYGK!")
     auto_cleanup_expired_keys.start()
 
-# 1. Tombol untuk Panel Pengambilan Key di Tiket
+# Tombol Pengambilan Key di Tiket
 class KeyView(discord.ui.View):
     def __init__(self, days):
         super().__init__(timeout=None)
@@ -110,7 +109,7 @@ class KeyView(discord.ui.View):
             await interaction.response.send_message("❌ Gagal menyimpan key ke database GitHub!", ephemeral=True)
             return
 
-        # Auto-Role
+        # Auto-Role Premium
         role_given = False
         member = interaction.user
         guild = interaction.guild
@@ -143,7 +142,7 @@ class KeyView(discord.ui.View):
         await interaction.channel.send(embed=embed)
         await interaction.channel.send(key)
 
-# 2. Tombol untuk Control Panel Utama (Redeem, Script, Status)
+# Control Panel Utama (Redeem, Script, Status)
 class ControlPanelView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -160,7 +159,7 @@ class ControlPanelView(discord.ui.View):
     async def check_status(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_message("📊 Status lisensi aktif dan terikat ke perangkat Anda.", ephemeral=True)
 
-# Perintah untuk memunculkan Panel Tiket: !panel 30D atau !panel 7D
+# Perintah Panel Tiket: !panel 30D atau !panel 7D
 @bot.command()
 async def panel(ctx, durasi: str = "30D"):
     durasi = durasi.upper()
@@ -180,7 +179,7 @@ async def panel(ctx, durasi: str = "30D"):
     view = KeyView(days)
     await ctx.send(embed=embed, view=view)
 
-# Perintah untuk memunculkan Control Panel Utama (Gaya Banner)
+# Perintah Control Panel Utama: !controlpanel
 @bot.command()
 async def controlpanel(ctx):
     embed = discord.Embed(

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Login - TOKO DONYGK</title>
+    <title>Sistem Login TOKO DONYGK</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); display: flex; justify-content: center; align-items: center; height: 100vh; }
@@ -28,7 +28,6 @@
 <body>
 
 <div class="container">
-    <!-- FORM LOGIN -->
     <div id="loginForm">
         <h2>Login TOKO DONYGK</h2>
         <div class="form-group">
@@ -43,7 +42,6 @@
         <div class="switch">Belum punya akun? <a onclick="toggleForm('register')">Daftar di sini</a></div>
     </div>
 
-    <!-- FORM REGISTER -->
     <div id="registerForm" class="hidden">
         <h2>Daftar Akun Baru</h2>
         <div class="form-group">
@@ -122,7 +120,6 @@
         let password = document.getElementById('loginPassword').value;
         let msg = document.getElementById('message');
 
-        @if(!username || !password) { ... }
         if(!username || !password) {
             msg.className = "msg error";
             msg.innerText = "Username dan password harus diisi!";
@@ -140,7 +137,7 @@
             let result = await response.json();
             
             msg.className = "msg " + (result.status === "success" ? "success" : "error");
-            msg.innerText = result.message + (result.keterangan ? " (" + result.keterangan + ")" : "");
+            msg.innerText = result.message + (result.keterangan ? " (" + result.keterangan + ")" : "" );
         } catch (error) {
             msg.className = "msg error";
             msg.innerText = "Terjadi kesalahan koneksi!";

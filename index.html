@@ -11,14 +11,12 @@
         h2 { text-align: center; color: #2c3e50; margin-bottom: 25px; font-weight: 700; font-size: 24px; }
         .form-group { margin-bottom: 20px; }
         label { display: block; margin-bottom: 8px; font-weight: 600; color: #34495e; font-size: 14px; }
-        input { width: 100%; padding: 12px 15px; border: 1px solid #dcdde1; border-radius: 8px; font-size: 14px; transition: border-color 0.3s; }
-        input:focus { outline: none; border-color: #3498db; box-shadow: 0 0 5px rgba(52, 152, 219, 0.3); }
-        button { width: 100%; padding: 12px; background-color: #2ecc71; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background 0.3s, transform 0.1s; }
+        input { width: 100%; padding: 12px 15px; border: 1px solid #dcdde1; border-radius: 8px; font-size: 14px; }
+        input:focus { outline: none; border-color: #3498db; }
+        button { width: 100%; padding: 12px; background-color: #2ecc71; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
         button:hover { background-color: #27ae60; }
-        button:active { transform: scale(0.98); }
         .switch { text-align: center; margin-top: 20px; font-size: 14px; color: #7f8c8d; }
         .switch a { color: #3498db; text-decoration: none; font-weight: 600; cursor: pointer; }
-        .switch a:hover { text-decoration: underline; }
         .hidden { display: none; }
         .msg { margin-top: 15px; text-align: center; font-size: 14px; font-weight: 600; }
         .success { color: #27ae60; }
@@ -69,9 +67,9 @@
     <div id="message" class="msg"></div>
 </div>
 
+<!-- KODE SCRIPT DIBAWAH INI WAJIB DI DALAM TAG SCRIPT -->
 <script>
-    // PERHATIAN: Masukkan URL Web App terbaru hasil deployment Anda di bawah ini
-    const WEB_APP_URL = "MASUKKAN_URL_WEB_APP_BARU_DI_SINI";
+    const WEB_APP_URL = "MASUKKAN_URL_WEB_APP_ANDA_DISINI";
 
     function toggleForm(type) {
         document.getElementById('message').innerText = "";

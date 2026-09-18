@@ -1,3 +1,4 @@
+import os
 import discord
 from discord.ext import commands, tasks
 import random
@@ -10,12 +11,12 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ================= KREDENSIAL (GANTI DENGAN MILIKMU) =================
-GITHUB_TOKEN = "MASUKKAN_TOKEN_DISINI"
-GIST_ID = "MASUKKAN_GIST_ID_DISINI"
-BOT_TOKEN = "MASUKKAN_BOT_TOKEN_DISINI"
-ROLE_NAME = "Premium"  # Role otomatis yang didapat pembeli
-SCRIPT_URL = "https://raw.githubusercontent.com/donyfiebryprayoga/Donn/refs/heads/main/loader/Donnhub.lua" # Link script Lua kamu
+# Mengambil token dan Gist ID secara aman dari Environment Variables Render
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+GIST_ID = os.getenv("GIST_ID")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+ROLE_NAME = "Premium"  
+SCRIPT_URL = "https://raw.githubusercontent.com/donyfiebryprayoga/Donn/refs/heads/main/loader/Donnhub.lua"
 # ====================================================================
 
 def generate_key_string():
